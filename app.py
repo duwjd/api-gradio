@@ -40,7 +40,7 @@ with gr.Blocks() as demo:
             
             # 모든 컴포넌트들을 미리 생성하고 초기에는 숨김
             llm_model = gr.Dropdown(
-                choices=["gpt-3.5-turbo", "gpt-4"], 
+                choices=["gpt-4o. gpt-5, gemini2.5-pro"], 
                 label="LLM 모델 선택",
                 visible=False
             )
