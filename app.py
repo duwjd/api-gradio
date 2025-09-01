@@ -2,37 +2,7 @@ import gradio as gr
 import json
 import generate_json
 from const import llm_list
- 
-def update_ui(analysis_code):
-    """분석 코드 선택에 따라 UI 컴포넌트들의 visibility를 업데이트"""
-    if analysis_code in ["AI-PHOTO2VIDEO-000001", "AI-PHOTO2VIDEO-000002"]:
-        return [
-            gr.update(visible=True),   # llm_model
-            gr.update(visible=True),   # user_image
-            gr.update(visible=True),   # video_generation_model
-            gr.update(visible=False),  # wan_parameter (초기화)
-            gr.update(visible=False),  # kling_parameter (초기화)
-        ]
-    elif analysis_code in ["AI-ASSIST-000001", "AI-ASSIST-000002"]:
-        return [
-            gr.update(visible=True),   # llm_model
-            gr.update(visible=False),  # user_image (숨김)
-            gr.update(visible=False),  # video_generation_model (숨김)
-            gr.update(visible=False),  # wan_parameter (숨김)
-            gr.update(visible=False),  # kling_parameter (숨김)
-        ]
-
-def update_video_model_visibility(video_model):
-    if video_model and video_model.startswith("WAN"):
-        return gr.update(visible=True), gr.update(visible=False)
-    elif video_model and video_model.startswith("Kling"):
-        return gr.update(visible=False), gr.update(visible=True)
-    else:
-        return gr.update(visible=False), gr.update(visible=False)
-
-# 체크박스 상태 변경 시 텍스트박스 가시성 업데이트 함수
-def toggle_prompt_input(is_checked):
-    return gr.update(visible=is_checked)
+from ui_updates import update_ui, update_video_model_visibility, toggle_prompt_input, toggle_prompt_input_kling
 
 
 with gr.Blocks() as demo:
@@ -40,10 +10,23 @@ with gr.Blocks() as demo:
     """
     # gemgem-ai-api test
     * 모든 프로젝트들은 userId=1, projectId=1로 고정됩니다.
+    * 분석 코드 안내
+        - AI-PHOTO2VIDEO-000001: 이미지를 영상으로 변환
+        - AI-PHOTO2VIDEO-000002: ???
+        - AI-ASSIST-000001: 문장 요약 
+        - AI-ASSIST-000002: 맞춤법 검사
     """)
     
     with gr.Row():
         with gr.Column():
+            # api 환경 선택
+            env = gr.Radio(
+                choices=["local","dev", "stg"], 
+                label="API 환경 선택",
+                value="dev",
+                interactive=True
+                )
+
             # 분석 코드 선택
             analysis_code = gr.Dropdown(
                 choices=["AI-PHOTO2VIDEO-000001", "AI-PHOTO2VIDEO-000002", "AI-ASSIST-000001", "AI-ASSIST-000002"], 
@@ -64,9 +47,11 @@ with gr.Blocks() as demo:
                 interactive=True,
                 visible=False
             )
-            user_image = gr.Image(
+            user_image = gr.File(
+                file_count="multiple",
+                file_types=[".png", ".jpg", ".jpeg", ".webp"],
+                interactive=True,
                 label="이미지 업로드", 
-                type="filepath",
                 visible=False
             )
 
@@ -112,11 +97,7 @@ with gr.Blocks() as demo:
                     placeholder="프롬프트를 입력하세요", 
                     visible=False, 
                     interactive=True
-                )
-
-                # 체크박스 상태 변경 시 텍스트박스 가시성 업데이트 함수
-                def toggle_prompt_input_kling(is_checked):
-                    return gr.update(visible=is_checked)
+                )                
 
                 # 이벤트 연결
                 is_user_prompt_input_kling.change(
@@ -124,7 +105,6 @@ with gr.Blocks() as demo:
                     inputs=is_user_prompt_input_kling,
                     outputs=user_prompt_input_kling
                 )
-            
             
             submit_btn = gr.Button(
                 "Submit",
@@ -140,6 +120,7 @@ with gr.Blocks() as demo:
                 lines=20
             )
     
+
     # 분석 코드 선택이 바뀔 때마다 UI 업데이트 (wan_parameter, kling_parameter 추가)
     analysis_code.change(
         fn=update_ui,
@@ -167,20 +148,7 @@ with gr.Blocks() as demo:
             analysis_code, 
             llm_model, 
             user_image, 
-            video_generation_model,
-            # WAN 파라미터들
-            resolution,
-            fps,
-            duration,
-            lora_selection,
-            is_user_prompt_input,
-            user_prompt_input,
-            # Kling 파라미터들
-            resolution_kling,
-            fps_kling,
-            duration_kling,
-            is_user_prompt_input_kling,
-            user_prompt_input_kling
+            video_generation_model
         ],
         outputs=[output]
     )
