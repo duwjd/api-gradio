@@ -30,8 +30,9 @@ def update_video_model_visibility(video_model):
     else:
         return gr.update(visible=False), gr.update(visible=False)
 
-    
-
+# 체크박스 상태 변경 시 텍스트박스 가시성 업데이트 함수
+def toggle_prompt_input(is_checked):
+    return gr.update(visible=is_checked)
 
 
 with gr.Blocks() as demo:
@@ -91,16 +92,6 @@ with gr.Blocks() as demo:
                     interactive=True
                 )
 
-                # 체크박스 상태 변경 시 텍스트박스 가시성 업데이트 함수
-                def toggle_prompt_input(is_checked):
-                    return gr.update(visible=is_checked)
-
-                # 이벤트 연결
-                is_user_prompt_input.change(
-                    fn=toggle_prompt_input,
-                    inputs=is_user_prompt_input,
-                    outputs=user_prompt_input
-                )
             
             kling_parameter = gr.Group(visible=False)
             with kling_parameter:
@@ -161,6 +152,12 @@ with gr.Blocks() as demo:
         fn=update_video_model_visibility,
         inputs=[video_generation_model],
         outputs=[wan_parameter, kling_parameter]
+    )
+
+    is_user_prompt_input.change(
+    fn=toggle_prompt_input,
+    inputs=is_user_prompt_input,
+    outputs=user_prompt_input
     )
 
     # Submit 버튼 클릭 시 개별 컴포넌트들을 inputs로 전달
