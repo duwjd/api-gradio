@@ -1,6 +1,8 @@
 import gradio as gr
 import json
 import generate_json
+import uuid
+
 from const import llm_list
 from ui_updates import update_ui, update_video_model_visibility, toggle_prompt_input, toggle_prompt_input_kling
 
@@ -21,7 +23,7 @@ with gr.Blocks() as demo:
         with gr.Column():
             # api 환경 선택
             env = gr.Radio(
-                choices=["local","dev", "stg"], 
+                choices=["dev"], 
                 label="API 환경 선택",
                 value="dev",
                 interactive=True
