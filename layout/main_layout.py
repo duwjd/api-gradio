@@ -12,7 +12,7 @@ from api.modules_gradio.components.image_components import (
     create_image_container_and_components
 )
 from api.modules_gradio.components.output_components import (
-    create_submit_button,
+    create_request_button,
     create_result_message,
     create_result_json,
     create_result_image,
@@ -38,24 +38,17 @@ def create_main_interface():
                     wan_parameter = create_wan_parameter_group()
                     video_generation_model = MODEL.WAN2_2
                 with gr.Tab("영상 생성 모델 API"):
-                    video_generation_model_dropdown = create_video_generation_model_dropdown()
-                    
+                    video_generation_model = create_video_generation_model_dropdown()
                     user_image = create_user_image_upload()
                     image_container = create_image_container_and_components()
                 
-                request_button = create_submit_button()
+                request_button = create_request_button()
             with gr.Column():  
                 #요청 결과 메시지
                 result_message = create_result_message()
 
                 # 요청 결과 JSON
                 result_json = create_result_json()
-
-                # # 분석 결과 텍스트
-                # result_text= create_result_text()
-
-                # # 분석 결과 이미지
-                # result_image = create_result_image()
 
                 # 분석 결과 비디오
                 result_video = create_result_video()

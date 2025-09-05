@@ -1,7 +1,7 @@
 """출력 관련 컴포넌트들"""
 import gradio as gr
 
-def create_submit_button():
+def create_request_button():
     """분석 요청 제출 버튼"""
     return gr.Button(
         "분석 요청하기",

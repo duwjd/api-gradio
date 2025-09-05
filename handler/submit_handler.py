@@ -4,6 +4,7 @@ import json
 from api.modules_gradio.ui_updates import update_result_components
 from api.modules_gradio.generate_json import generate_json_wan
 from api.modules.analysis.analysis_service import AnalysisService
+from api.modules.analysis.schema.analysis_schema import ReqDoAnalysis
 from fastapi import BackgroundTasks
 
 
@@ -43,18 +44,45 @@ def extract_video_urls(json_data):
 
 def setup_submit_handler(components):
     """분석 요청 제출 버튼 핸들러 설정"""
+    
+    # analysis_code를 상수로 사용
+    analysis_code = "AI-GRADIO-000001"
 
-    async def handle_submit():
-        request_body = generate_json_wan(components['analysis_code'],
-                                         components['wan_parameter']['user_prompt_input'], 
-                                         components['wan_parameter']['negative_prompt'], 
-                                         components['wan_parameter']['total_second_length'], 
-                                         components['wan_parameter']['frames_per_second'], 
-                                         components['wan_parameter']['num_inference_steps'], 
-                                         components['wan_parameter']['guidance_scale'], 
-                                         components['wan_parameter']['shift'], 
-                                         components['wan_parameter']['seed'],)
-        return await AnalysisService().do_analysis(request_body, background_tasks)
+    async def handle_submit(user_image, user_prompt_input, negative_prompt, 
+                           total_second_length, frames_per_second, 
+                           num_inference_steps, guidance_scale, shift, seed):
+        """제출 버튼 클릭 시 실행되는 함수"""
+        request_body = generate_json_wan(
+            analysis_code,  # 상수 직접 사용
+            user_prompt_input, 
+            negative_prompt, 
+            total_second_length, 
+            frames_per_second, 
+            num_inference_steps, 
+            guidance_scale, 
+            shift, 
+            seed
+        )
+                # JSON 문자열을 딕셔너리로 변환 후 ReqDoAnalysis 객체 생성
+        json_data = json.loads(request_body)
+        request_body = ReqDoAnalysis(**json_data)
+        
+        # 분석 서비스 호출
+        result = await AnalysisService().do_analysis(request_body, background_tasks)
+        
+        # 결과 처리 - ResDoAnalysis 객체를 적절히 변환
+        if hasattr(result, 'status'):
+            return (
+                f"상태: {result.status.value if hasattr(result.status, 'value') else result.status}",
+                json_string,  # 생성된 JSON
+                result.message if hasattr(result, 'message') else ""
+            )
+        else:
+            return (
+                "분석 요청 실패",
+                json_string,
+                str(result)
+            )
 
     
     # 제출 버튼 클릭 이벤트 핸들러 설정
@@ -62,7 +90,6 @@ def setup_submit_handler(components):
         components['request_button'].click(
             fn=handle_submit,
             inputs=[
-                components['analysis_code'],
                 components['user_image'],
                 components['wan_parameter']['user_prompt_input'] if 'wan_parameter' in components else gr.Textbox(value=""),
                 components['wan_parameter']['negative_prompt'] if 'wan_parameter' in components else gr.Textbox(value=""),
@@ -75,8 +102,8 @@ def setup_submit_handler(components):
             ],
             outputs=[
                 components['result_message'] if 'result_message' in components else gr.Textbox(label="처리 결과"),
-                components['result_json'] if 'result_json' in components else gr.Textbox(label="생성된 JSON"),
-                components['result_text'] if 'result_text' in components else gr.Textbox(label="생성된 텍스트")
+                components['result_json'] if 'result_json' in components else gr.Code(label="생성된 JSON"),
+                components['result_video'] if 'result_video' in components else gr.Video(label="생성된 영상")
             ]
         )
         print("[INFO] 제출 버튼 핸들러 설정 완료")
