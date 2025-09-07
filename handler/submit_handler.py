@@ -6,6 +6,8 @@ from api.modules_gradio.generate_json import generate_json_wan
 from api.modules.analysis.analysis_service import AnalysisService
 from api.modules.analysis.schema.analysis_schema import ReqDoAnalysis
 from fastapi import BackgroundTasks
+from utils.s3_util import upload_file
+import uuid
 
 
 background_tasks = BackgroundTasks()
@@ -48,12 +50,14 @@ def setup_submit_handler(components):
     # analysis_code를 상수로 사용
     analysis_code = "AI-GRADIO-000001"
 
-    async def handle_submit(user_image, user_prompt_input, negative_prompt, 
+    async def handle_submit(analysis_code, user_image, user_prompt_input, negative_prompt, 
                            total_second_length, frames_per_second, 
                            num_inference_steps, guidance_scale, shift, seed):
-        """제출 버튼 클릭 시 실행되는 함수"""
+        """제출 버튼 클릭 시 실행"""
+
         request_body = generate_json_wan(
-            analysis_code,  # 상수 직접 사용
+            analysis_code,
+            user_image,
             user_prompt_input, 
             negative_prompt, 
             total_second_length, 
@@ -63,7 +67,8 @@ def setup_submit_handler(components):
             shift, 
             seed
         )
-                # JSON 문자열을 딕셔너리로 변환 후 ReqDoAnalysis 객체 생성
+
+        # JSON 문자열을 딕셔너리로 변환 후 ReqDoAnalysis 객체 생성
         json_data = json.loads(request_body)
         request_body = ReqDoAnalysis(**json_data)
         

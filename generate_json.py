@@ -145,35 +145,60 @@ def generate_json_ai_assist(analysis_code, llm_model, llm_prompt):
         }
         return json.dumps(error_json, indent=2, ensure_ascii=False)
     
-def generate_json_wan(analysis_code, user_prompt_input, negative_prompt, total_second_length, fps, num_inference_steps, guidance_scale, shift, seed):
+def generate_json_wan(analysis_code, user_image, user_prompt_input, negative_prompt, total_second_length, fps, num_inference_steps, guidance_scale, shift, seed):
     """
-    WAN 모델을 위한 JSON 생성
+    WAN 모델을 위한 JSON 생성 (이미지 한 장 업로드)
     """
-    json_data = {
+    try:
+        # UUID를 사용해서 파일 ID 생성
+        file_id = str(uuid.uuid4())
+        
+        # S3 URL 생성 (이미지 한 장)
+        s3_url = f"s3://gemgem-public-10k1m/public/local/1/1/document/{file_id}_01.jpg"
+        
+        json_data = {
             "userId": 1,
             "projectId": 1,
-            "documentS3": [],
+            "documentS3": [s3_url],
             "analysisS3": "s3://gemgem-public-10k1m/public/local/1/1/analysis/",
             "analysisHttps": "https://gemgem-public-10k1m.s3.ap-northeast-2.amazonaws.com/public/local/1/1/analysis/",
             "group": "10k1m.com",
             "type": analysis_code,
-            "option": [],
+            "option": [{
+                            "src": s3_url,
+                            "type": "image",
+                            "value": ""
+                    }],
             "prompt": [
-                        {
-                            "llmCode": "LLM-CHATGPT",
-                            "prompt": ""
-                        }
-                    ],
-            "test":{
-                    "prompt":user_prompt_input,
-                    "negative_prompt":negative_prompt,
-                    "total_second_length": total_second_length,
-                    "frames_per_second":fps,
-                    "num_inference_steps":num_inference_steps,
-                    "guidance_scale":guidance_scale,
-                    "shift":shift,
-                    "seed":seed
-                    }
+                {
+                    "llmCode": "LLM-CHATGPT",
+                    "prompt": ""
+                }
+            ],
+            "test": {
+                "prompt": user_prompt_input,
+                "negative_prompt": negative_prompt,
+                "total_second_length": total_second_length,
+                "frames_per_second": fps,
+                "num_inference_steps": num_inference_steps,
+                "guidance_scale": guidance_scale,
+                "shift": shift,
+                "seed": int(seed) if seed else 42
+            }
         }
-    json_string = json.dumps(json_data, indent=2, ensure_ascii=False)
-    return json_string
+        
+        # S3에 이미지 업로드
+        upload_file(user_image, s3_url)
+        
+        # JSON 문자열로 변환
+        json_string = json.dumps(json_data, indent=2, ensure_ascii=False)
+
+        print(json_string)
+        return json_string
+        
+    except Exception as e:
+        error_json = {
+            "error": str(e),
+            "analysisCode": analysis_code
+        }
+        return json.dumps(error_json, indent=2, ensure_ascii=False)

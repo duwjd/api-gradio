@@ -5,7 +5,7 @@ from api.modules_gradio.ui_updates import toggle_image_prompt
 def create_user_image_upload():
     """이미지 파일 업로드 컴포넌트"""
     return gr.Image(
-    type="pil",       # 함수에 전달되는 데이터 타입
+    type="filepath",       # 함수에 전달되는 데이터 타입
     sources=["upload"], # ["upload", "clipboard", "webcam"] 가능
     label="이미지 업로드"
     )
