@@ -11,7 +11,7 @@ def setup_all_event_handlers(components):
     # setup_analysis_handlers(components)
     
     # 이미지 관련 핸들러 설정
-    setup_image_handlers(components)
+    # setup_image_handlers(components)
     
     # 비디오 관련 핸들러 설정
     setup_video_handlers(components)

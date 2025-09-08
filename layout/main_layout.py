@@ -34,13 +34,13 @@ def create_main_interface():
             with gr.Column():
                 with gr.Tab("WAN 모델"):
                     user_image = create_user_image_upload()
-                    image_container = create_image_container_and_components()
+                    # image_container = create_image_container_and_components()
                     wan_parameter = create_wan_parameter_group()
                     video_generation_model = MODEL.WAN2_2
                 with gr.Tab("영상 생성 모델 API"):
                     video_generation_model = create_video_generation_model_dropdown()
                     # user_image = create_user_image_upload()
-                    image_container = create_image_container_and_components()
+                    # image_container = create_image_container_and_components()
                 
                 request_button = create_request_button()
             with gr.Column():  
@@ -57,7 +57,7 @@ def create_main_interface():
             'analysis_code': "AI-GRADIO-000001",
             'video_generation_model': video_generation_model,
             'user_image': user_image,
-            'image_container': image_container,
+            # 'image_container': image_container,
             'wan_parameter': wan_parameter,
             'request_button': request_button,
             'result_message' : result_message,

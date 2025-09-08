@@ -70,19 +70,19 @@ def setup_submit_handler(components):
         # 분석 서비스 호출
         result = await AnalysisService().do_analysis(request_body, background_tasks)
         
-        # # 결과 처리 - ResDoAnalysis 객체를 적절히 변환
-        # if hasattr(result, 'status'):
-        #     return (
-        #         f"상태: {result.status.value if hasattr(result.status, 'value') else result.status}",
-        #         json_string,  # 생성된 JSON
-        #         result.message if hasattr(result, 'message') else ""
-        #     )
-        # else:
-        #     return (
-        #         "분석 요청 실패",
-        #         json_string,
-        #         str(result)
-        #     )
+        # 결과 처리 - ResDoAnalysis 객체를 적절히 변환
+        if hasattr(result, 'status'):
+            return (
+                f"상태: {result.status.value if hasattr(result.status, 'value') else result.status}",
+                request_body,  # 생성된 JSON
+                result.message if hasattr(result, 'message') else ""
+            )
+        else:
+            return (
+                "분석 요청 실패",
+                request_body,
+                str(result)
+            )
 
     
     # 제출 버튼 클릭 이벤트 핸들러 설정

@@ -33,20 +33,6 @@ class Wan2VideoInputSchema(BaseAiInputSchema):
     seed: int = Field(default=42, ge=0, le=2**32 - 1)
     upload_folder: str = Field(default="")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class TaskLLMSchema(BaseConfigModel):
     id: int
     user_id: int
