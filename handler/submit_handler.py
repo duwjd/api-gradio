@@ -6,8 +6,7 @@ from api.modules_gradio.generate_json import generate_json_wan
 from api.modules.analysis.analysis_service import AnalysisService
 from api.modules.analysis.schema.analysis_schema import ReqDoAnalysis
 from fastapi import BackgroundTasks
-from utils.s3_util import upload_file
-import uuid
+from api.modules_gradio.config.constants import ANALYSIS_CODE
 
 
 background_tasks = BackgroundTasks()
@@ -46,17 +45,13 @@ def extract_video_urls(json_data):
 
 def setup_submit_handler(components):
     """분석 요청 제출 버튼 핸들러 설정"""
-    
-    # analysis_code를 상수로 사용
-    analysis_code = "AI-GRADIO-000001"
-
-    async def handle_submit(analysis_code, user_image, user_prompt_input, negative_prompt, 
+    async def handle_submit(user_image, user_prompt_input, negative_prompt, 
                            total_second_length, frames_per_second, 
                            num_inference_steps, guidance_scale, shift, seed):
         """제출 버튼 클릭 시 실행"""
-
+        print("[DEBUG] user_image:", type(user_image), user_image)
         request_body = generate_json_wan(
-            analysis_code,
+            ANALYSIS_CODE,
             user_image,
             user_prompt_input, 
             negative_prompt, 
@@ -75,19 +70,19 @@ def setup_submit_handler(components):
         # 분석 서비스 호출
         result = await AnalysisService().do_analysis(request_body, background_tasks)
         
-        # 결과 처리 - ResDoAnalysis 객체를 적절히 변환
-        if hasattr(result, 'status'):
-            return (
-                f"상태: {result.status.value if hasattr(result.status, 'value') else result.status}",
-                json_string,  # 생성된 JSON
-                result.message if hasattr(result, 'message') else ""
-            )
-        else:
-            return (
-                "분석 요청 실패",
-                json_string,
-                str(result)
-            )
+        # # 결과 처리 - ResDoAnalysis 객체를 적절히 변환
+        # if hasattr(result, 'status'):
+        #     return (
+        #         f"상태: {result.status.value if hasattr(result.status, 'value') else result.status}",
+        #         json_string,  # 생성된 JSON
+        #         result.message if hasattr(result, 'message') else ""
+        #     )
+        # else:
+        #     return (
+        #         "분석 요청 실패",
+        #         json_string,
+        #         str(result)
+        #     )
 
     
     # 제출 버튼 클릭 이벤트 핸들러 설정

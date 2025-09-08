@@ -1,13 +1,14 @@
 import gradio as gr
-from api.modules_gradio.config.constants import MAX_IMAGES, IMAGE_FILE_TYPES, IMAGE_CHOICE_OPTIONS
+from api.modules_gradio.config.constants import MAX_IMAGES, IMAGE_CHOICE_OPTIONS
 from api.modules_gradio.ui_updates import toggle_image_prompt
 
 def create_user_image_upload():
     """이미지 파일 업로드 컴포넌트"""
     return gr.Image(
-    type="filepath",       # 함수에 전달되는 데이터 타입
-    sources=["upload"], # ["upload", "clipboard", "webcam"] 가능
-    label="이미지 업로드"
+        type="filepath",
+        sources=["upload"],
+        label="이미지 업로드",
+        interactive=True
     )
 
 def create_image_container_and_components():
@@ -29,7 +30,9 @@ def create_image_container_and_components():
                             label=f"이미지 {i+1}",
                             interactive=False,
                             visible=True,
-                            elem_id=f"image_preview_{i}"
+                            elem_id=f"image_preview_{i}",
+                            height=200,
+                            width=200
                         )
                         image_previews.append(img_preview)
                     

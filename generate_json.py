@@ -3,7 +3,8 @@ import base64
 from io import BytesIO
 from PIL import Image
 import uuid
-
+import os
+import tempfile
 from utils.s3_util import upload_file
 
 MAX_IMAGES = 10
@@ -117,9 +118,18 @@ def generate_json_photo2video(analysis_code, llm_model, user_images, video_gener
         return json_string  # 튜플이 아닌 문자열만 반환
         
     except Exception as e:
+        # 에러 발생 시 기본 구조에 맞춘 JSON 반환
         error_json = {
-            "error": str(e),
-            "analysisCode": analysis_code
+            "userId": 1,
+            "projectId": 1,
+            "documentS3": [],
+            "analysisS3": "s3://gemgem-public-10k1m/public/local/1/1/analysis/",
+            "analysisHttps": "https://gemgem-public-10k1m.s3.ap-northeast-2.amazonaws.com/public/local/1/1/analysis/",
+            "group": "10k1m.com",
+            "type": analysis_code if analysis_code else "AI-GRADIO-000001",
+            "option": [],
+            "prompt": [],
+            "error": str(e)  # 에러는 별도 필드로 추가
         }
         return json.dumps(error_json, indent=2, ensure_ascii=False)
 
@@ -139,9 +149,13 @@ def generate_json_ai_assist(analysis_code, llm_model, llm_prompt):
         return json_string
         
     except Exception as e:
+        # AI 어시스트용 에러 JSON
         error_json = {
-            "error": str(e),
-            "analysisCode": analysis_code
+            "userId": 1,
+            "projectId": 1,
+            "type": analysis_code if analysis_code else "AI-ASSIST-000001",
+            "inputData": "",
+            "error": str(e)
         }
         return json.dumps(error_json, indent=2, ensure_ascii=False)
     
@@ -150,6 +164,28 @@ def generate_json_wan(analysis_code, user_image, user_prompt_input, negative_pro
     WAN 모델을 위한 JSON 생성 (이미지 한 장 업로드)
     """
     try:
+        # 입력 검증
+        if not user_image:
+            raise ValueError("이미지가 제공되지 않았습니다.")
+            
+        if not os.path.exists(user_image):
+            raise ValueError(f"이미지 파일을 찾을 수 없습니다: {user_image}")
+        
+        
+        # if user_image is None:
+        #     raise ValueError("이미지가 제공되지 않았습니다.")
+
+        # if isinstance(user_image, Image.Image):
+        #     # PIL 이미지를 임시 파일로 저장
+        #     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        #     user_image.save(tmp_file.name)
+        #     user_image_path = tmp_file.name
+        # elif isinstance(user_image, str) and os.path.exists(user_image):
+        #     # 파일 경로로 들어온 경우
+        #     user_image_path = user_image
+        # else:
+        #     raise ValueError("유효하지 않은 이미지 입력입니다.")
+
         # UUID를 사용해서 파일 ID 생성
         file_id = str(uuid.uuid4())
         
@@ -165,10 +201,10 @@ def generate_json_wan(analysis_code, user_image, user_prompt_input, negative_pro
             "group": "10k1m.com",
             "type": analysis_code,
             "option": [{
-                            "src": s3_url,
-                            "type": "image",
-                            "value": ""
-                    }],
+                "src": s3_url,
+                "type": "image",
+                "value": ""
+            }],
             "prompt": [
                 {
                     "llmCode": "LLM-CHATGPT",
@@ -176,29 +212,49 @@ def generate_json_wan(analysis_code, user_image, user_prompt_input, negative_pro
                 }
             ],
             "test": {
-                "prompt": user_prompt_input,
-                "negative_prompt": negative_prompt,
-                "total_second_length": total_second_length,
-                "frames_per_second": fps,
-                "num_inference_steps": num_inference_steps,
-                "guidance_scale": guidance_scale,
-                "shift": shift,
+                "prompt": user_prompt_input or "",
+                "negative_prompt": negative_prompt or "",
+                "total_second_length": total_second_length or 5,
+                "frames_per_second": fps or 24,
+                "num_inference_steps": num_inference_steps or 50,
+                "guidance_scale": guidance_scale or 5.0,
+                "shift": shift or 5.0,
                 "seed": int(seed) if seed else 42
             }
         }
         
-        # S3에 이미지 업로드
-        upload_file(user_image, s3_url)
+        # S3에 이미지 업로드 시도
+        try:
+            upload_success = upload_file(user_image, s3_url)
+            if not upload_success:
+                print(f"[WARNING] S3 업로드 실패: {s3_url}")
+        except Exception as upload_error:
+            print(f"[ERROR] S3 업로드 중 오류: {upload_error}")
+            # 업로드 실패해도 JSON은 반환 (로컬 테스트 환경 등을 위해)
         
         # JSON 문자열로 변환
         json_string = json.dumps(json_data, indent=2, ensure_ascii=False)
-
-        print(json_string)
+        print(f"[INFO] Generated JSON: {json_string}")
         return json_string
         
     except Exception as e:
+        print(f"[ERROR] generate_json_wan 오류: {e}")
+        # 에러 발생 시 기본 구조에 맞춘 JSON 반환
         error_json = {
-            "error": str(e),
-            "analysisCode": analysis_code
+            "userId": 1,
+            "projectId": 1,
+            "documentS3": [],
+            "analysisS3": "s3://gemgem-public-10k1m/public/local/1/1/analysis/",
+            "analysisHttps": "https://gemgem-public-10k1m.s3.ap-northeast-2.amazonaws.com/public/local/1/1/analysis/",
+            "group": "10k1m.com",
+            "type": analysis_code if analysis_code else "AI-GRADIO-000001",
+            "option": [],
+            "prompt": [
+                {
+                    "llmCode": "LLM-CHATGPT",
+                    "prompt": ""
+                }
+            ],
+            "error": str(e)  # 에러는 별도 필드로 추가
         }
         return json.dumps(error_json, indent=2, ensure_ascii=False)

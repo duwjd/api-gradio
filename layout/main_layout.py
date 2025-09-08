@@ -39,7 +39,7 @@ def create_main_interface():
                     video_generation_model = MODEL.WAN2_2
                 with gr.Tab("영상 생성 모델 API"):
                     video_generation_model = create_video_generation_model_dropdown()
-                    user_image = create_user_image_upload()
+                    # user_image = create_user_image_upload()
                     image_container = create_image_container_and_components()
                 
                 request_button = create_request_button()

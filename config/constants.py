@@ -5,7 +5,7 @@ import os
 # 최대 이미지 개수
 MAX_IMAGES = 4
 
-# 분석 코드 선택지들
+# 분석 코드
 ANALYSIS_CODE = "AI-GRADIO-000001"
 
 # 영상 생성 모델 선택지들
