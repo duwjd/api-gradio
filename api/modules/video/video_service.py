@@ -17,10 +17,7 @@ from utils.util import crop_image, encode_image_base64, open_image, resize_image
 
 logger = logging.getLogger("app")
 # 자동 export os.getenv("REPLICATE_API_TOKEN")
-replicate_api_keys = [
-    "r8_HETS7NHZtCVMyVGzXK3WqrZEYVwB7Ov2oPRqB",
-    # "r8_376f23Cgw7uwTY3oKlYNfU6hThv3QbE06zYbB", # 크레잇 이슈
-]
+replicate_api_keys = []
 api_key_cycle = cycle(replicate_api_keys)
 
 
