@@ -178,18 +178,13 @@ def create_seedance_parameter_group():
 
 def create_video_generation_model_parameter(model):
     """비디오 생성 모델 파라미터 생성"""
-    with gr.Group(visible=False) as wan_parameter:
-        gr.Markdown("### WAN 모델 파라미터")
-        # WAN 모델용 파라미터 컴포넌트들
-        create_wan_parameter_group()
-
-    with gr.Group(visible=False) as kling_parameter:
-        gr.Markdown("### KLING 모델 파라미터")
-        # KLING 모델용 파라미터 컴포넌트들
-        create_kling_parameter_group()
-
-    with gr.Group(visible=False) as seedance_parameter:
-        gr.Markdown("### Seedance 모델 파라미터")
-        create_seedance_parameter_group()
-    # 두 개의 그룹을 리스트로 반환
-    return [wan_parameter, kling_parameter, seedance_parameter]
+    wan_params = create_wan_parameter_group()
+    kling_params = create_kling_parameter_group()
+    seedance_params = create_seedance_parameter_group()
+    
+    # 딕셔너리로 반환
+    return {
+        'wan': wan_params,
+        'kling': kling_params,
+        'seedance': seedance_params
+    }

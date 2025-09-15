@@ -54,7 +54,7 @@ def create_main_interface():
     components = {
         'i2v_analysis_code': i2v_analysis_code,
         'i2v_input': i2v_input,
-        'i2v_video_parameter': i2v_video_parameter,
+        'i2v_video_parameter': i2v_video_parameter,  # 전체 딕셔너리 저장
         'i2v_model_selection': i2v_model_selection,
         'i2v_json_button': i2v_generate_json_button,
         'i2v_request_button': i2v_request_button,
@@ -70,6 +70,11 @@ def create_main_interface():
 
     # video_parameter 개별 컴포넌트들만 추가
     if isinstance(i2v_video_parameter, dict):
-        components.update({f'i2v_video_parameter_{k}': v for k, v in i2v_video_parameter.items()})
+        for model_name, model_params in i2v_video_parameter.items():
+            if isinstance(model_params, dict):
+                for param_name, param_component in model_params.items():
+                    # group은 제외하고 실제 컴포넌트만 추가
+                    if param_name != 'group':
+                        components[f'i2v_{model_name}_{param_name}'] = param_component
     
     return demo, components
