@@ -49,8 +49,8 @@ class DoAnalysisOption(BaseConfigModel):
     src: str
     video_type: Optional[str] = None
     model: Optional[dict] = None
-    type: Optional[str] = None      # 기존 호환성을 위해 유지
-    value: Optional[str] = None     # 기존 호환성을 위해 유지
+    type: Optional[str] = None      
+    value: Optional[str] = None     
 
 
 class ReqDoAnalysis(BaseConfigModel):
@@ -109,3 +109,17 @@ class ResGetAnalysisTypes(BaseConfigModel):
 class ResGetWanSQSQueueCount(BaseConfigModel):
     pending: int
     progress: int
+
+
+class ResAnalysisSQSConsumer(BaseConfigModel):
+    httpStatusCode: Optional[int] = None
+    userId: Optional[int] = None
+    projectId: Optional[int] = None
+    type: Optional[str] = None
+    status: STATUS
+    progress: Optional[int] = None
+    code: Optional[str] = None
+    message: Optional[str] = None
+    result: Optional[Union[str, list]] = None
+    documentS3: Optional[list[str]] = None
+    requestBody: Optional[str] = None

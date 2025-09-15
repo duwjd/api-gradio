@@ -1,4 +1,7 @@
 import logging
+import json
+from typing import Union
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy import select, update
 from sqlalchemy.future import select
@@ -7,9 +10,12 @@ from sqlalchemy.orm import Session
 
 from api.modules.analysis.dao.analysis_dao import get_analysis_type
 from api.modules.analysis.schema.analysis_schema import ReqDoAnalysis, TaskLLMSchema
+from api.modules_master.consumer.schema.consumer_analysis_schema import (
+    ReqConsumerAnalysis,
+)
 from config.const import STATUS
 from database.mariadb.models.resource_llm_model import ResourceLLM
-from database.mariadb.models.task_gradio_model import TaskGradio
+from database.mariadb.models.task_llm_model import TaskLLM
 
 logger = logging.getLogger("app")
 
@@ -28,7 +34,7 @@ async def init_task_gradio(req_body: ReqDoAnalysis, db: Session):
     analysis_type = await get_analysis_type(analysis_code, db)
 
     # 항상 새로운 태스크 생성
-    task = TaskGradio(
+    task = TaskLLM(
         user_id=user_id,
         project_id=project_id,
         analysis_code=analysis_code,
@@ -53,16 +59,16 @@ async def get_task_gradio(user_id: int, project_id: int, type: str, db: Session)
         db (Session): DB Session
 
     Returns:
-        TaskGradio: db 조회 결과
+        TaskLLM: db 조회 결과
 
     """
     analysis_code = type
 
     # 코드 데이터 조회
-    query = select(TaskGradio).where(
-        TaskGradio.user_id == user_id,
-        TaskGradio.project_id == project_id,
-        TaskGradio.analysis_code == analysis_code,
+    query = select(TaskLLM).where(
+        TaskLLM.user_id == user_id,
+        TaskLLM.project_id == project_id,
+        TaskLLM.analysis_code == analysis_code,
     )
     result = await db.execute(query)
     task = result.scalars().first()
@@ -81,7 +87,7 @@ async def get_task_gradio_status(req_body: ReqDoAnalysis, db: Session):
         db (Session): DB Session
 
     Returns:
-        TaskGradio: db 조회 결과
+        TaskLLM: db 조회 결과
 
     """
 
@@ -89,10 +95,10 @@ async def get_task_gradio_status(req_body: ReqDoAnalysis, db: Session):
     project_id = req_body.projectId
     analysis_code = req_body.type
 
-    query = select(TaskGradio).where(
-        TaskGradio.user_id == user_id,
-        TaskGradio.project_id == project_id,
-        TaskGradio.analysis_code == analysis_code,
+    query = select(TaskLLM).where(
+        TaskLLM.user_id == user_id,
+        TaskLLM.project_id == project_id,
+        TaskLLM.analysis_code == analysis_code,
     )
     result = await db.execute(query)
     task = result.scalars().first()
@@ -119,10 +125,10 @@ async def get_task_gradio_progress(req_body: ReqDoAnalysis, db: Session):
     project_id = req_body.projectId
     analysis_code = req_body.type
 
-    query = select(TaskGradio).where(
-        TaskGradio.user_id == user_id,
-        TaskGradio.project_id == project_id,
-        TaskGradio.analysis_code == analysis_code,
+    query = select(TaskLLM).where(
+        TaskLLM.user_id == user_id,
+        TaskLLM.project_id == project_id,
+        TaskLLM.analysis_code == analysis_code,
     )
     result = await db.execute(query)
     task = result.scalars().first()
@@ -147,11 +153,11 @@ async def update_task_gradio_progress(req_body: ReqDoAnalysis, progress: int, db
     analysis_code = req_body.type
 
     task = (
-        update(TaskGradio)
+        update(TaskLLM)
         .where(
-            TaskGradio.user_id == user_id,
-            TaskGradio.project_id == project_id,
-            TaskGradio.analysis_code == analysis_code,
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
         )
         .values(progress=progress)
     )
@@ -181,11 +187,11 @@ async def update_task_gradio_status(req_body: ReqDoAnalysis, status: str, db: Se
     analysis_code = req_body.type
 
     task = (
-        update(TaskGradio)
+        update(TaskLLM)
         .where(
-            TaskGradio.user_id == user_id,
-            TaskGradio.project_id == project_id,
-            TaskGradio.analysis_code == analysis_code,
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
         )
         .values(status=status)
     )
@@ -211,11 +217,11 @@ async def update_task_gradio_result(req_body: ReqDoAnalysis, result: str, db: Se
     analysis_code = req_body.type
 
     task = (
-        update(TaskGradio)
+        update(TaskLLM)
         .where(
-            TaskGradio.user_id == user_id,
-            TaskGradio.project_id == project_id,
-            TaskGradio.analysis_code == analysis_code,
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
         )
         .values(result=result)
     )
@@ -241,11 +247,11 @@ async def update_task_end_at(req_body: ReqDoAnalysis, end_at: str, db: Session):
     analysis_code = req_body.type
 
     task = (
-        update(TaskGradio)
+        update(TaskLLM)
         .where(
-            TaskGradio.user_id == user_id,
-            TaskGradio.project_id == project_id,
-            TaskGradio.analysis_code == analysis_code,
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
         )
         .values(end_at=end_at)
     )
@@ -271,11 +277,11 @@ async def update_task_gradio_end_at(req_body: ReqDoAnalysis, llm_end_at: str, db
     analysis_code = req_body.type
 
     task = (
-        update(TaskGradio)
+        update(TaskLLM)
         .where(
-            TaskGradio.user_id == user_id,
-            TaskGradio.project_id == project_id,
-            TaskGradio.analysis_code == analysis_code,
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
         )
         .values(llm_end_at=llm_end_at)
     )
@@ -305,11 +311,11 @@ async def update_task_gradio_code(req_body: ReqDoAnalysis, db: Session):
     llm_code = result.scalars().first()
 
     task = (
-        update(TaskGradio)
+        update(TaskLLM)
         .where(
-            TaskGradio.user_id == user_id,
-            TaskGradio.project_id == project_id,
-            TaskGradio.analysis_code == analysis_code,
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
         )
         .values(llm_code=llm_code)
     )
@@ -335,11 +341,11 @@ async def update_empty_tag_llm(req_body: ReqDoAnalysis, empty_tag: str, db: Sess
     analysis_code = req_body.type
 
     task = (
-        update(TaskGradio)
+        update(TaskLLM)
         .where(
-            TaskGradio.user_id == user_id,
-            TaskGradio.project_id == project_id,
-            TaskGradio.analysis_code == analysis_code,
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
         )
         .values(empty_tag=empty_tag)
     )
@@ -364,11 +370,11 @@ async def update_task_gradio_process(req_body: ReqDoAnalysis, process: str, db: 
     analysis_code = req_body.type
 
     task = (
-        update(TaskGradio)
+        update(TaskLLM)
         .where(
-            TaskGradio.user_id == user_id,
-            TaskGradio.project_id == project_id,
-            TaskGradio.analysis_code == analysis_code,
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
         )
         .values(process=process)
     )
@@ -393,10 +399,10 @@ async def get_task_gradio_error_message(
         error_message (str): 에러 메세지
     """
 
-    task = select(TaskGradio.error_message).where(
-        TaskGradio.user_id == user_id,
-        TaskGradio.project_id == project_id,
-        TaskGradio.analysis_code == analysis_code,
+    task = select(TaskLLM.error_message).where(
+        TaskLLM.user_id == user_id,
+        TaskLLM.project_id == project_id,
+        TaskLLM.analysis_code == analysis_code,
     )
 
     result = await db.execute(task)
@@ -421,11 +427,11 @@ async def update_task_gradio_init_error(req_body: ReqDoAnalysis, db: Session):
     analysis_code = req_body.type
 
     task = (
-        update(TaskGradio)
+        update(TaskLLM)
         .where(
-            TaskGradio.user_id == user_id,
-            TaskGradio.project_id == project_id,
-            TaskGradio.analysis_code == analysis_code,
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
         )
         .values(error_code=None, error_message=None)
     )
@@ -450,11 +456,11 @@ async def update_task_gradio_error(
     analysis_code = req_body.type
 
     task = (
-        update(TaskGradio)
+        update(TaskLLM)
         .where(
-            TaskGradio.user_id == user_id,
-            TaskGradio.project_id == project_id,
-            TaskGradio.analysis_code == analysis_code,
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
         )
         .values(
             error_code=error_code,
@@ -467,7 +473,7 @@ async def update_task_gradio_error(
 
 async def get_photo2video(req_body: ReqDoAnalysis, db: Session):
     """
-    task_gradio photo2video 조회
+    task_gradio image2video 조회
 
     Args:
         req_body (ReqDoAnalysis): req_body
@@ -478,16 +484,75 @@ async def get_photo2video(req_body: ReqDoAnalysis, db: Session):
     project_id = req_body.projectId
     analysis_code = req_body.type
 
-    task = select(TaskGradio.photo2video).where(
-        TaskGradio.user_id == user_id,
-        TaskGradio.project_id == project_id,
-        TaskGradio.analysis_code == analysis_code,
+    task = select(TaskLLM.image2video).where(
+        TaskLLM.user_id == user_id,
+        TaskLLM.project_id == project_id,
+        TaskLLM.analysis_code == analysis_code,
     )
     result = await db.execute(task)
     return result.scalars().first()
 
+async def get_task_gradio_request_body(req_body: ReqConsumerAnalysis, db: AsyncSession):
+    """
+    task_gradio documentS3 조회
 
-async def update_llm_result(req_body: ReqDoAnalysis, llm_result: str, db: Session):
+    Args:
+        req_body (ReqConsumerAnalysis): req_body
+        db (Session): DB Session
+
+    Returns:
+        documentS3 (list): input url 주소 리스트
+    """
+    user_id = req_body.userId
+    project_id = req_body.projectId
+    analysis_code = req_body.analysisCode
+
+    task = select(TaskLLM.request_body).where(
+        TaskLLM.user_id == user_id,
+        TaskLLM.project_id == project_id,
+        TaskLLM.analysis_code == analysis_code,
+    )
+
+    result = await db.execute(task)
+    request_body = result.scalars().first()
+
+    if request_body:
+        data = json.loads(request_body)
+        return ReqDoAnalysis(**data)
+    return None
+
+async def update_task_gradio_request_body(req_body: ReqDoAnalysis, db: Session):
+    """
+    task_gradio request_body 저장
+
+    Args:
+        req_body (ReqDoAnalysis): req_body
+        request_body (str): request_body
+        db (Session): DB Session
+    """
+    user_id = req_body.userId
+    project_id = req_body.projectId
+    analysis_code = req_body.type
+
+    task = (
+        update(TaskLLM)
+        .where(
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
+        )
+        .values(request_body=req_body.model_dump_json())
+    )
+
+    result = await db.execute(task)
+    await db.commit()
+
+    if result.rowcount == 0:
+        raise Exception("user_id, project_id task_gradio row가 없습니다")
+
+
+
+async def update_gradio_result(req_body: ReqDoAnalysis, gradio_result: str, db: Session):
     """
     task_gradio llm_result 저장
 
@@ -502,21 +567,21 @@ async def update_llm_result(req_body: ReqDoAnalysis, llm_result: str, db: Sessio
     analysis_code = req_body.type
 
     task = (
-        update(TaskGradio)
+        update(TaskLLM)
         .where(
-            TaskGradio.user_id == user_id,
-            TaskGradio.project_id == project_id,
-            TaskGradio.analysis_code == analysis_code,
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
         )
-        .values(llm_result=llm_result)
+        .values(llm_result=gradio_result)
     )
     await db.execute(task)
     await db.commit()
 
 
-async def get_ai_photo2video_0000001(req_body: ReqDoAnalysis, db: Session):
+async def get_ai_gradio_image2video_0000001(req_body: ReqDoAnalysis, db: Session):
     """
-    task_gradio ai-photo2video-000001 조회
+    task_gradio ai-gradio_image2video-000001 조회
 
     Args:
         req_body (ReqDoAnalysis): req_body
@@ -525,12 +590,12 @@ async def get_ai_photo2video_0000001(req_body: ReqDoAnalysis, db: Session):
 
     user_id = req_body.userId
     project_id = req_body.projectId
-    analysis_code = "AI-PHOTO2VIDEO-000001"
+    analysis_code = "AI-GRADIO-IMAGE2VIDEO-000001"
 
-    task = select(TaskGradio.llm_result).where(
-        TaskGradio.user_id == user_id,
-        TaskGradio.project_id == project_id,
-        TaskGradio.analysis_code == analysis_code,
+    task = select(TaskLLM.llm_result).where(
+        TaskLLM.user_id == user_id,
+        TaskLLM.project_id == project_id,
+        TaskLLM.analysis_code == analysis_code,
     )
 
     result = await db.execute(task)
@@ -553,11 +618,11 @@ async def update_task_gradio_prompt(req_body: ReqDoAnalysis, prompt: str, db: Se
     analysis_code = req_body.type
 
     prompt = (
-        update(TaskGradio)
+        update(TaskLLM)
         .where(
-            TaskGradio.user_id == user_id,
-            TaskGradio.project_id == project_id,
-            TaskGradio.analysis_code == analysis_code,
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
         )
         .values(prompt=prompt)
     )

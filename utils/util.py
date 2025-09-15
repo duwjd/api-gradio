@@ -219,6 +219,63 @@ async def open_image(file_path: str) -> Image.Image:
     image = await asyncio.to_thread(_open_image, file_path)
     return image
 
+
+async def crop_image(original_image: Image.Image, target_ratio: float = 9 / 16):
+    """
+    비동기적으로 이미지를 크롭하여 지정된 비율로 Resize
+
+    Args:
+        original_image (Image.Image): 크롭할 이미지
+        target_ratio (float, optional): 목표 비율. Defaults to 9 / 16.
+
+    Returns:
+        Image.Image: 크롭된 이미지
+    """
+
+    def _crop_image(original_image: Image.Image, target_ratio: float) -> Image.Image:
+        if target_ratio < 0 or target_ratio == 0.0:
+            raise ValueError("Target ratio must be a greater than 0.0 !")
+        width, height = original_image.size
+        current_ratio = width / height
+        if current_ratio == target_ratio:
+            return original_image.copy()
+
+        if current_ratio > target_ratio:
+            new_width = int(height * target_ratio)
+            left = (width - new_width) // 2
+            right = left + new_width
+            top = 0
+            bottom = height
+        else:
+            new_height = int(width / target_ratio)
+            top = (height - new_height) // 2
+            bottom = top + new_height
+            left, right = 0, width
+        cropped_image = original_image.crop((left, top, right, bottom))
+        cropped_image.format = original_image.format
+        return cropped_image
+
+    cropped_image = await asyncio.to_thread(_crop_image, original_image, target_ratio)
+    return cropped_image
+
+
+async def resize_image(
+    original_image: Image.Image, width: int = 720, height: int = 1280
+):
+    def _resize_image(
+        original_image: Image.Image, width: int, height: int
+    ) -> Image.Image:
+        resized_image = original_image.resize(
+            (width, height), resample=Image.Resampling.LANCZOS
+        )
+        return resized_image
+
+    resized_image = await asyncio.to_thread(
+        _resize_image, original_image, width, height
+    )
+    return resized_image
+
+
 async def encode_image_base64(image: Image.Image):
     """
     이미지을 base64 encoding
@@ -481,3 +538,26 @@ async def webp_to_jpg(input_path: str, quality: int = 100):
 
     # 변환 작업을 스레드에서 실행
     return await asyncio.to_thread(convert)
+
+
+def get_prompt_from_request_body(req_body):
+    """req_body에서 직접 프롬프트 추출 (Pydantic 모델용)"""
+    try:
+        option_list = req_body.option
+        
+        if option_list and len(option_list) > 0:
+            first_option = option_list[0]
+            
+            # first_option은 DoAnalysisOption 객체이고, model은 딕셔너리
+            if hasattr(first_option, 'model') and first_option.model:
+                model_data = first_option.model  # 이것은 딕셔너리
+                if isinstance(model_data, dict) and 'option' in model_data:
+                    model_option = model_data['option']  # 딕셔너리로 접근
+                    if isinstance(model_option, dict) and 'prompt' in model_option:
+                        return model_option['prompt']
+                        
+    except Exception as e:
+        print(f"Error in get_prompt_from_request_body: {e}")
+        import traceback
+        traceback.print_exc()
+    return None

@@ -5,10 +5,15 @@ class LLM:
     GPT_IMAGE_1 = "gpt-image-1"
     GEMINI_FLASH = "gemini-2.0-flash"
     GEMINI_PRO = "gemini-1.5-pro"
-    # GEMINI_2_5_FLASH = "gemini-2.5-flash-preview-04-17"
+    GEMINI_2_5_FLASH = "gemini-2.5-flash-preview-05-20"
     GEMINI_2_5_PRO = "gemini-2.5-pro-preview-06-05"
     GPT_5 = "gpt-5"
     GPT_5_NANO = "gpt-5-nano"
+
+
+class LLM_CODE:
+    CHATGPT = "LLM-CHATGPT"
+    GEMINI = "LLM-GEMINI"
 
 
 class LLMConfig:

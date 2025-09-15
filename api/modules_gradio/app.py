@@ -3,7 +3,7 @@ import os
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, project_root)
 
-os.environ['ENV'] = 'local'
+os.environ['ENV'] = 'gradio'
 
 config_path = os.path.join(project_root, 'config')
 print(f"Config path exists: {os.path.exists(config_path)}")
@@ -11,6 +11,10 @@ print(f"Config path exists: {os.path.exists(config_path)}")
 import gradio as gr
 from api.modules_gradio.layout.main_layout import create_main_interface
 from api.modules_gradio.handler.event_handler import setup_all_event_handlers
+
+# 로깅 설정 추가
+from config.log_config import setup_logging
+import logging
 
 def main():
     # demo와 components를 받기
@@ -25,6 +29,11 @@ def main():
     demo : gr.Interface
         The created gradio demo interface.
     """
+    
+    setup_logging("gemgem-ai.log", "error.log")
+    logger = logging.getLogger("app")
+    logger.info("Gradio 앱 시작 - 로깅 설정 완료")
+    logger.info(f"env: {os.getenv('ENV')}")
 
     demo, components = create_main_interface()
     

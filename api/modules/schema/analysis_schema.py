@@ -1,6 +1,6 @@
 from typing import Any, List, Literal, Optional, Union
-
-from pydantic import Field, BaseModel
+from PIL import Image
+from pydantic import ConfigDict, Field, BaseModel
 
 from api.modules.schema import BaseConfigModel
 from config.const import STATUS, STATUS_OK
@@ -28,16 +28,44 @@ class ResOk(BaseConfigModel):
 
 
 class ModelOption(BaseModel):
-    prompt: Optional[str] = Field(None, description="생성할 비디오에 대한 프롬프트")
-    resolution: Optional[str] = Field(default="720*480", description="해상도")
-    aspect_ratio: Optional[str] = Field(default="9:16", description="화면 비율등)")
-    negative_prompt: Optional[str] = Field(default="", description="네거티브 프롬프트")
-    total_second_length: Optional[int] = Field(default=5, description="총 비디오 길이 (초)")
-    frames_per_second: Optional[int] = Field(default=24, description="초당 프레임 수")
-    num_inference_steps: Optional[int] = Field(None, description="추론 단계 수")
-    guidance_scale: Optional[float] = Field(None, description="가이던스 스케일")
-    shift: Optional[float] = Field(None, description="시프트 값")
-    seed: Optional[int] = Field(None, description="시드 값")
+    frames_per_second: int = Field(default=16, ge=1, le=60, alias="framesPerSecond")
+    guidance_scale: float = Field(default=1.0, ge=1.0, le=10, alias="guidanceScale")
+    image: Optional[Image.Image] = Field(default=None)
+    max_area: int = Field(
+        default=720 * 1280,
+        alias="maxArea",  # 480 * 832 for 480p, 720 * 1280 for 720p
+    )
+    negative_prompt: str = Field(
+        default=(
+            "Bright tones, overexposed, static,"
+            " blurred details, subtitles, style, works, paintings,"
+            " images, static, overall gray, worst quality, low quality,"
+            " JPEG compression residue, ugly, incomplete, extra fingers,"
+            " poorly drawn hands, poorly drawn faces, deformed, disfigured,"
+            " misshapen limbs, fused fingers, still picture, messy background,"
+            " three legs, many people in the background, walking backwards, shaking"
+        ),
+        alias="negativePrompt",
+    )
+    num_inference_steps: int = Field(default=8, ge=8, le=50, alias="numInferenceSteps")
+    prompt: str = Field(
+        default=(
+            "A sleek modern car driving slowly and smoothly forward, "
+            "with a cinematic presentation style. The camera follows "
+            "the car at a steady pace, showcasing its elegant design "
+            "and motion. The car moves at a moderate speed"
+        ),
+        alias="prompt",
+    )
+    seed: int = Field(default=0, ge=0, le=2**32 - 1, alias="seed")
+    shift: int = Field(default=8.0, ge=1.0, le=10.0, alias="shift")  # not used
+    total_second_length: int = Field(default=5, ge=1, le=10, alias="totalSecondLength")
+    # Configuration that allows PIL image object
+    model_config = ConfigDict(
+        extra="forbid",  # 모든 모델에서 추가 필드 금지
+        arbitrary_types_allowed=True,  # 임의의 타입 허용
+    )
+
 
 class VideoModel(BaseModel):
     name: str = Field(..., description="모델 이름 (예: 'Wan2.2')")
@@ -45,7 +73,7 @@ class VideoModel(BaseModel):
 
 class VideoGenerationOption(BaseModel):
     src: str = Field(..., description="소스 파일 경로 (S3 URL 등)")
-    video_type: str = Field(..., description="비디오 타입 (예: 'API or ENGINE')")
+    video_type: str = Field(..., description="비디오 타입 ('API or ENGINE')")
     model: VideoModel = Field(..., description="사용할 모델과 설정")
 
 class VideoGenerationRequest(BaseModel):

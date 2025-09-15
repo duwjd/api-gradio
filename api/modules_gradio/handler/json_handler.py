@@ -1,6 +1,6 @@
 import gradio as gr
-from utils.generate_json import generate_json_i2i, generate_json_i2v
-from config.constants import I2I_ANALYSIS_CODE, I2V_ANALYSIS_CODE
+from utils.generate_request_body import generate_json_i2i, generate_json_i2v
+from config.const import I2I_ANALYSIS_CODE, I2V_ANALYSIS_CODE
 
 def setup_json_button_handler(components):
     

@@ -7,14 +7,19 @@ from logging.config import dictConfig
 LOG_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "log"))
 os.makedirs(LOG_DIR, exist_ok=True)
 
-LOG_FILENAME = "gemgem-ai-test.log"
-ERROR_LOG_FILENAME = "gemgem-ai-test-error.log"
 
-LOG_FILE = os.path.join(LOG_DIR, LOG_FILENAME)
-ERROR_LOG_FILE = os.path.join(LOG_DIR, ERROR_LOG_FILENAME)
+class FlushStreamHandler(logging.StreamHandler):
+    """로그를 찍을 때마다 flush 보장"""
+
+    def emit(self, record):
+        super().emit(record)
+        self.flush()
 
 
-def setup_logging() -> logging.Logger:
+def setup_logging(log_filename: str, error_log_filename: str) -> logging.Logger:
+    log_file = os.path.join(LOG_DIR, log_filename)
+    error_log_file = os.path.join(LOG_DIR, error_log_filename)
+
     # 시간 포함된 포맷 설정
     logging.getLogger().handlers.clear()
 
@@ -33,20 +38,20 @@ def setup_logging() -> logging.Logger:
             "handlers": {
                 "console": {
                     "level": "DEBUG",
-                    "class": "logging.StreamHandler",
+                    "class": "config.log_config.FlushStreamHandler",
                     "formatter": "default",
                     "stream": sys.stdout,
                 },
                 "file": {
                     "level": "DEBUG",
                     "class": "logging.FileHandler",
-                    "filename": LOG_FILE,
+                    "filename": log_file,
                     "formatter": "default",
                 },
                 "error_file": {
                     "level": "ERROR",
                     "class": "logging.FileHandler",
-                    "filename": ERROR_LOG_FILE,
+                    "filename": error_log_file,
                     "formatter": "default",
                 },
             },

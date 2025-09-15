@@ -20,7 +20,7 @@ from api.modules.analysis.dao.analysis_task_engine_dao import (
     is_process_fail,
 )
 from api.modules.analysis.dao.analysis_task_gradio_dao import (
-    update_llm_result,
+    update_gradio_result,
     update_task_gradio_code,
     update_task_gradio_end_at,
     update_task_gradio_process,

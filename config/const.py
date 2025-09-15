@@ -1,5 +1,6 @@
 import json
 from enum import Enum
+import os
 
 
 class BaseStrEnum(Enum):
@@ -68,6 +69,7 @@ class S3(str, BaseStrEnum):
     REGION = "ap-northeast-2"
     IMAGE_PATH = "images/"
     GENERATOR_IMAGE_NAME = "generator_image"
+    ANALYSIS_RESULT = "analysis.json"
     HTTPS = "https://cdn.gemgem.video/"
 
 
@@ -78,10 +80,10 @@ class STATUS_OK(str, BaseStrEnum):
 # API STATUS 정의
 class STATUS(str, BaseStrEnum):
     INIT = "init"
+    PENDING = "pending"
     PROGRESS = "progress"
     SUCCESS = "success"
     FAIL = "fail"
-    PENDING = "pending"
 
 
 # MIME 타입 정의
@@ -141,6 +143,43 @@ class AI_MODEL(str, BaseStrEnum):
 
 
 class SQS_QUEUE(str, BaseStrEnum):
+    # 분석 요청 큐
+    GRADIO_ANALYSIS_REQUEST = "gradio_ai_analysis_request.fifo"
+    LOCAL_ANALYSIS_REQUEST = "local_ai_analysis_request.fifo"
+    DEV_ANALYSIS_REQUEST = "development_ai_analysis_request.fifo"
+    STG_ANALYSIS_REQUEST = "staging_ai_analysis_request.fifo"
+    PRD_ANALYSIS_REQUEST = "production_ai_analysis_request.fifo"
+
+    # 분석 결과 큐
+    GRADIO_ANALYSIS_RESPONSE = "gradio_ai_analysis_response.fifo"
+    LOCAL_ANALYSIS_RESPONSE = "local_ai_analysis_response.fifo"
+    DEV_ANALYSIS_RESPONSE = "development_ai_analysis_response.fifo"
+    STG_ANALYSIS_RESPONSE = "staging_ai_analysis_response.fifo"
+    PRD_ANALYSIS_RESPONSE = "production_ai_analysis_response.fifo"
+
+    # 모델 분석 요청 큐
+    GRADIO_WAN_2_1_REQUEST = "gradio_ai_wan2_1_request.fifo"
+    GRADIO_WAN_2_2_REQUEST = "gradio_ai_wan2_2_request.fifo"
+    LOCAL_WAN_REQUEST = "local_ai_wan_request.fifo"
+    DEV_WAN_REQUEST = "development_ai_wan_request.fifo"
+    STG_WAN_REQUEST = "staging_ai_wan_request.fifo"
+    PRD_WAN_REQUEST = "production_ai_wan_request.fifo"
+
+    # 모델 분석 결과 큐
+    GRADIO_WAN_2_1_RESPONSE = "gradio_ai_wan2_1_response.fifo"
+    GRADIO_WAN_2_2_RESPONSE = "gradio_ai_wan2_2_response.fifo"
+    LOCAL_WAN_RESPONSE = "local_ai_wan_response.fifo"
+    DEV_WAN_RESPONSE = "development_ai_wan_response.fifo"
+    STG_WAN_RESPONSE = "staging_ai_wan_response.fifo"
+    PRD_WAN_RESPONSE = "production_ai_wan_response.fifo"
+
+    # master 분석 요청 큐
+    GRADIO_MASTER_REQUEST = "gradio_ai_master_request.fifo"
+    LOCAL_MASTER_REQUEST = "local_ai_master_request.fifo"
+    DEV_MASTER_REQUEST = "development_ai_master_request.fifo"
+    STG_MASTER_REQUEST = "staging_ai_master_request.fifo"
+    PRD_MASTER_REQUEST = "production_ai_master_request.fifo"
+
     DOCUMENT_PARSER = "document_parser.fifo"
     MASK_IMAGE = "mask_image.fifo"
     INSERT_ANYTHING = "insert_anything.fifo"
@@ -148,6 +187,12 @@ class SQS_QUEUE(str, BaseStrEnum):
     FRAMEPACK = "framepack.fifo"
     LTX_DISTIL = "ltx_distil.fifo"
     WAN = "wan.fifo"
+
+
+class SQS_QUEUE_COUNT:
+    MAX_MASTER_CONSUMER_COUNT = 10
+    MAX_ANALYSIS_CONSUMER_COUNT = 10
+    MAX_ANALYSIS_PRODUCER_COUNT = 10
 
 
 class API_VIDEO_MODEL(str, BaseStrEnum):
@@ -165,11 +210,80 @@ class API_MUSIC_MODEL(str, BaseStrEnum):
 
 
 class MODEL(BaseModelEnum):
+    WAN2_1 = ("ENGINE", "WAN", "2.1", "")
     WAN2_2 = ("ENGINE", "WAN", "2.2", "")
     KLING_V2_1 = ("API", "KLING", "2.1", "")
     SEEDANCE_1_LITE = ("API", "SEEDANCE", "1.0", "LITE")
     SEEDANCE_1_PRO = ("API", "SEEDANCE", "1.0", "PRO")
 
+# 최대 이미지 개수
+MAX_IMAGES = 4
+
+# 분석 코드
+I2V_ANALYSIS_CODE = ["AI-GRADIO-IMAGE2VIDEO-000001"]
+I2I_ANALYSIS_CODE = ["AI-GRADIO-IMAGE2IMAGE-000001"]
+
+
+# 영상 생성 모델 선택지들
+VIDEO_MODELS = [
+    "WAN2.1", 
+    "WAN2.2", 
+    "Kling2.1"
+]
+
+# 지원되는 이미지 파일 타입들
+IMAGE_FILE_TYPES = [
+    ".png", 
+    ".jpg", 
+    ".jpeg", 
+    ".webp"
+]
+
+# 해상도 선택 옵션들
+RESOLUTION_OPTIONS = [
+    "480*720", 
+    "720*1280"
+]
+
+# FPS 선택 옵션들
+FPS_OPTIONS = [16, 24, 30]
+
+# LoRA 선택 옵션들
+LORA_OPTIONS = [
+    "None", 
+    "Wan21_CausVid_14B_T2V_lora_rank32.safetensors", 
+    "Wan21_CausVid_14B_T2V_lora_rank32_v2.safetensors"
+]
+
+# 이미지 선택 옵션들
+IMAGE_CHOICE_OPTIONS = ["image", "prompt"]
+
+# WAN 모델 기본값들
+WAN_DEFAULT_VALUES = {
+    "resolution": "480*720",
+    "fps": 24,
+    "total_second_length": 2,
+    "negative_prompt": "",
+    "lora_selection" : "",
+    "num_inference_steps": 20,
+    "guidance_scale": 5.0,
+    "shift": 5.0,
+    "seed": 42
+}
+
+# Slider 설정값들
+SLIDER_CONFIGS = {
+    "total_second_length": {"min": 1, "max": 10, "step": 1},
+    "num_inference_steps": {"min": 10, "max": 50, "step": 1},
+    "guidance_scale": {"min": 1.0, "max": 20.0, "step": 0.1},
+    "shift": {"min": 1.0, "max": 10.0, "step": 0.1}
+}
+
+# 앱 설명 마크다운
+APP_DESCRIPTION = """
+# gemgem-ai-api test
+* 모든 프로젝트들은 userId=1, projectId=1로 고정됩니다.
+"""
 
 class ANALYSIS_ERROR(BaseErrorEnum):
     AI_API_ANALYSIS_REQUEST_INVALID = (
@@ -396,6 +510,18 @@ class ANALYSIS_ERROR(BaseErrorEnum):
         422,
     )
 
+    AI_API_ANALYSIS_REPLICATE_UNATHENTICATED = (
+        "AI_API_ANALYSIS_REPLICATE_UNATHENTICATED",
+        "REPLICATE 인증에 실패했습니다.",
+        500,
+    )
+
+    AI_API_ANALYSIS_REPLICATE_INVALID_TOKEN = (
+        "AI_API_ANALYSIS_REPLICATE_INVALID_TOKEN",
+        "REPLICATE 토큰이 유효하지 않습니다",
+        500,
+    )
+
     AI_API_ANALYSIS_LOCATION_EXTRACTION_FAIL = (
         "AI_API_ANALYSIS_LOCATION_EXTRACTION_FAIL",
         "위치 정보 추출에 실패했습니다.",
@@ -405,5 +531,35 @@ class ANALYSIS_ERROR(BaseErrorEnum):
     AI_API_ANALYSIS_IMAGE_PREPROCESS_FAIL = (
         "AI_API_ANALYSIS_IMAGE_PREPROCESS_FAIL",
         "이미지 전처리에 실패했습니다.",
+        500,
+    )
+
+    AI_API_SQS_MESSAGE_SEND_FAIL = (
+        "AI_API_SQS_SEND_FAIL",
+        "SQS 메시지 전송에 실패했습니다.",
+        500,
+    )
+
+    AI_API_SQS_MESSAGE_RECEIVE_FAIL = (
+        "AI_API_SQS_MESSAGE_RECEIVE_FAIL",
+        "SQS 메시지 조회에 실패했습니다.",
+        500,
+    )
+
+    AI_API_SQS_MESSAGE_DELETE_FAIL = (
+        "AI_API_SQS_MESSAGE_DELETE_FAIL",
+        "SQS 메시지 삭제에 실패했습니다.",
+        500,
+    )
+
+    AI_API_SQS_GET_URL_FAIL = (
+        "AI_API_SQS_GET_URL_FAIL",
+        "SQS 큐 URL 가져오기에 실패했습니다.",
+        500,
+    )
+
+    AI_API_ASSIST_FAIL = (
+        "AI_API_ASSIST_FAIL",
+        "LLM 어시스트 요청에 실패했습니다.",
         500,
     )

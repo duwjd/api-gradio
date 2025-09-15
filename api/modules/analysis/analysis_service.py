@@ -8,12 +8,13 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
+from api.exceptions import APIException, response_error
+
 from fastapi import BackgroundTasks, Request, Response
 from PIL import Image
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from api.exceptions import response_error
 from api.modules.analysis.dao.analysis_dao import (
     get_analysis_dev,
     get_analysis_group,
@@ -21,6 +22,11 @@ from api.modules.analysis.dao.analysis_dao import (
     is_analysis_code,
     update_analysis_sync,
 )
+
+from api.modules.analysis.dao.analysis_sqs_queue_dao import (
+    get_analysis_producer_sqs_queue,
+)
+
 from api.modules.analysis.dao.analysis_task_gradio_dao import (
     get_task_gradio,
     get_task_gradio_status,
@@ -31,12 +37,14 @@ from api.modules.analysis.dao.analysis_task_gradio_dao import (
     update_task_gradio_progress,
     update_task_gradio_result,
     update_task_gradio_status,
+    update_task_gradio_request_body,
     get_task_gradio_error_message,
 )
 from api.modules.analysis.processor.assist_processor import ai_assist
 from api.modules.analysis.processor_filter import processor_filter
 from api.modules.analysis.schema.analysis_schema import (
     ReqDoAnalysis,
+    ResAnalysisSQSConsumer,
     ResDoAnalysis,
     ResGetAnalysis,
 )
@@ -46,9 +54,9 @@ from database.mariadb.mariadb_config import (
     AsyncSessionLocal,
     SessionLocal,
 )
-from database.mariadb.models.task_gradio_model import TaskGradio
+from database.mariadb.models.task_llm_model import TaskLLM
 from utils.s3_util_engine import delete_s3, download_s3, upload_s3
-from utils.sqs_util import get_sqs_message_count, get_sqs_queue_url
+from utils.sqs_util import get_sqs_message_count, get_sqs_queue_url, send_sqs_message
 
 # utils
 from utils.util import build_status_key, is_change_image, webp_to_jpg
@@ -79,6 +87,9 @@ class AnalysisService:
         try:
             logger.info(f"params: {json.dumps(req_body.dict(), ensure_ascii=False)}")
 
+             # 분석 조회 SQS queue
+            analysis_producer_sqs_queue = await get_analysis_producer_sqs_queue()
+
             # 임시 폴더 생성
             tmp = str(uuid.uuid4())
             base_dir = ".upload"
@@ -106,7 +117,18 @@ class AnalysisService:
 
                     # task_gradio 등록
                     await init_task_gradio(req_body, db)
-
+                    # 분석 조회 SQS queue pending 메세지 전송
+                    await send_sqs_message(
+                        queue_url=analysis_producer_sqs_queue,
+                        message=ResAnalysisSQSConsumer(
+                            httpStatusCode=200,
+                            userId=req_body.userId,
+                            projectId=req_body.projectId,
+                            type=req_body.type,
+                            status=STATUS.PENDING,
+                            progress=0,
+                        ).model_dump_json(exclude_none=True),
+                    )
                     document_files = []
                     if req_body.documentS3 != None:
                         # S3에서 문서 다운로드
@@ -150,7 +172,8 @@ class AnalysisService:
                             )
 
                     # 백그라운드 동기 병렬 실행
-                    background_tasks.add_task(background_task)
+                    back_task = asyncio.create_task(background_task())
+                    background_tasks.add_task(back_task)
 
                 else:
                     raise Exception(ANALYSIS_ERROR.AI_API_ANALYSIS_REQUEST_INVALID)
@@ -261,6 +284,9 @@ class AnalysisService:
     async def _run_analysis(
         req_body: ReqDoAnalysis, document_files: list, upload_dir: str, db: Session
     ):
+        
+        logger.info("=== _run_analysis 함수 시작 ===")
+        logger.info(f"req_body.type: {req_body.type}")
         """
         백그라운드에서 AI 분석 실행
 
@@ -273,55 +299,57 @@ class AnalysisService:
             result(list): 분석 결과
         """
         try:
-            start_time = time.time()
+            # 분석 조회 SQS queue
+            analysis_producer_sqs_queue = await get_analysis_producer_sqs_queue()
 
+            
+            # req_body 저장
+            await update_task_gradio_request_body(req_body, db)
+            start_time = time.time()
             result: list = []
+            
             # llm 어시스트
             if req_body.type.startswith("AI-ASSIST"):
                 result = await ai_assist(req_body)
+                
+                if not result:
+                    logger.error(
+                        f"userId: {req_body.userId}, projectId: {req_body.projectId}, analysisCode: {req_body.type} 분석 결과 없음"
+                    )
+                    raise APIException(ANALYSIS_ERROR.AI_API_ANALYSIS_FAIL)
 
-            elif req_body.type.startswith("AI-GRADIO-IMAGE2VIDEO"):
-                # 분석 진행
+                result = json.dumps(result, ensure_ascii=False)
+
+                await update_task_gradio_result(req_body, result, db)
+
+                end_time = time.time()
+
+                # 상태 업데이트 (완료)
+                await update_task_gradio_progress(req_body, 100, db)
+                await update_task_gradio_status(req_body, STATUS.SUCCESS, db)
+                await update_task_gradio_init_error(req_body, db)
+                await update_task_end_at(req_body, round(end_time - start_time, 2), db)
+                
+                
+                logger.info(
+                f"userId: {req_body.userId}, projectId: {req_body.projectId}, analysisCode: {req_body.type}, 분석 결과 : {result}, 분석 완료 시간 : {round(end_time - start_time, 2)}초"
+                )
+            else:
+                # 분석 진행 분기
                 result = await processor_filter(
                     req_body=req_body,
                     document_files=document_files,
                     upload_dir=upload_dir,
                     db=db,
                 )
-            elif req_body.type.startswith("AI-GRADIO-IMAGE2IMAGE"):
-                result = await processor_filter(
-                    req_body = req_body,
-                    document_files=document_files,
-                    upload_dir=upload_dir,
-                    db=db,
-                )
-            if not result:
-                logger.error(
-                    f"userId: {req_body.userId}, projectId: {req_body.projectId}, analysisCode: {req_body.type} 분석 결과 없음"
-                )
-                raise Exception(ANALYSIS_ERROR.AI_API_ANALYSIS_FAIL)
-
-            result = json.dumps(result, ensure_ascii=False)
-
-            await update_task_gradio_result(req_body, result, db)
-
-            end_time = time.time()
-
-            # 상태 업데이트 (완료)
-            await update_task_gradio_progress(req_body, 100, db)
-            await update_task_gradio_status(req_body, STATUS.SUCCESS, db)
-            await update_task_gradio_init_error(req_body, db)
-            await update_task_end_at(req_body, round(end_time - start_time, 2), db)
-
-            logger.info(
-                f"userId: {req_body.userId}, projectId: {req_body.projectId}, analysisCode: {req_body.type}, 분석 결과 : {result}, 분석 완료 시간 : {round(end_time - start_time, 2)}초"
-            )
-
+                
+                
         except Exception as e:
             logger.error(f"분석 중 에러: {e}", exc_info=True)
 
             error_enum = ANALYSIS_ERROR.AI_API_ANALYSIS_FAIL
             error_detail = None
+            error_status_code = 500
 
             arg = e.args[0] if e.args else None
 
@@ -339,7 +367,32 @@ class AnalysisService:
             await update_task_gradio_status(req_body, STATUS.FAIL, db)
             await update_task_gradio_error(req_body, error_code, error_detail, db)
 
-            return response_error(error_enum, ResDoAnalysis, error_detail)
+            response = response_error(
+                error_enum,
+                ResGetAnalysis,
+                await get_task_gradio_error_message(
+                    user_id=req_body.userId,
+                    project_id=req_body.projectId,
+                    analysis_code=req_body.type,
+                    db=db,
+                ),
+            )
+
+            # 분석 조회 SQS queue 실패 메세지 전송
+            await send_sqs_message(
+                queue_url=analysis_producer_sqs_queue,
+                message=ResAnalysisSQSConsumer(
+                    httpStatusCode=error_status_code,
+                    userId=req_body.userId,
+                    projectId=req_body.projectId,
+                    type=req_body.type,
+                    status=STATUS.FAIL,
+                    code=error_code,
+                    message=error_detail,
+                ).model_dump_json(exclude_none=True),
+            )
+
+            return response
 
         finally:
             if os.getenv("ENV") != "local":

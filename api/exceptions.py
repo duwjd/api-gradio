@@ -12,6 +12,10 @@ from config.const import ANALYSIS_ERROR, STATUS, BaseErrorEnum
 logger = logging.getLogger("app")
 
 
+class APIException(Exception):
+    pass
+
+
 class ResError(BaseModel):
     status: STATUS
     code: Optional[str] = None

@@ -1,0 +1,14 @@
+{
+    "version": {
+      "#": "major number",
+      "major": 0,
+      "#": "minor number",
+      "minor": 1,
+      "#": "patch number",
+      "patch": 1,
+      "#": "build number",
+      "build": 1,
+      "#": "build identifier string, i.e. alpha1/beta1/rc1, default: empty string",
+      "identifier": "alpha1"
+    }
+  }

@@ -1,5 +1,5 @@
 import gradio as gr
-from config.constants import I2V_ANALYSIS_CODE, I2I_ANALYSIS_CODE
+from config.const import I2V_ANALYSIS_CODE, I2I_ANALYSIS_CODE
 
 def create_analysis_code_dropdown(tab_type):
     """분석 코드 선택 드롭다운 컴포넌트"""

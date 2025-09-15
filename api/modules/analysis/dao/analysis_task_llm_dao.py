@@ -1,4 +1,6 @@
 import logging
+import json
+
 
 from sqlalchemy import select, update
 from sqlalchemy.future import select
@@ -172,6 +174,40 @@ async def get_task_llm_progress(req_body: ReqDoAnalysis, db: Session):
         return TaskLLMSchema.model_validate(task).progress
     return 0
 
+async def get_task_llm_progress(req_body: ReqDoAnalysis, db: Session):
+    """
+    task_llm progress 조회 및 파싱
+
+    Args:
+        req_body(ReqDoAnalysis): req_body
+        db (Session): DB Session
+
+    Returns:
+        dict: 파싱된 progress 정보 또는 None
+
+    """
+
+    user_id = req_body.userId
+    project_id = req_body.projectId
+    analysis_code = req_body.type
+
+    query = select(TaskLLM).where(
+        TaskLLM.user_id == user_id,
+        TaskLLM.project_id == project_id,
+        TaskLLM.analysis_code == analysis_code,
+    )
+    result = await db.execute(query)
+    task = result.scalars().first()
+
+    if task:
+        progress = TaskLLMSchema.model_validate(task).progress
+        if progress:
+            try:   
+                return json.loads(progress)
+            except json.JSONDecodeError:
+                pass
+    
+    return None
 
 async def update_task_llm_progress(req_body: ReqDoAnalysis, progress: int, db: Session):
     """

@@ -1,13 +1,14 @@
 """WAN과 Kling 파라미터 레이아웃 관련 컴포넌트들"""
 
 import gradio as gr
-from config.constants import (
+from config.const import (
     VIDEO_MODELS,
     RESOLUTION_OPTIONS, FPS_OPTIONS, LORA_OPTIONS, 
     WAN_DEFAULT_VALUES, SLIDER_CONFIGS
 )
 from api.modules_gradio.ui_updates import toggle_prompt_input, toggle_prompt_input_kling
 from config.const import API_VIDEO_MODEL
+from config.const import MODEL
 
 def create_wan_parameter_group():
     """WAN 모델 파라미터 그룹 생성"""
@@ -154,9 +155,41 @@ def create_kling_parameter_group():
         'user_prompt_input_kling': user_prompt_input_kling
     }
     
+
+def create_seedance_parameter_group():
+    """Seedance 모델 파라미터 그룹 생성"""
+    seedance_parameter = gr.Group(elem_id="seedance_parameter", visible=False)
     
+    with seedance_parameter:
+        gr.Markdown("#### Seedance 모델 파라미터 설정")
+        # Seedance 모델용 파라미터 컴포넌트들
+        seedance_option = gr.Radio(
+            choices=["Option 1", "Option 2"], 
+            value="Option 1", 
+            label="Seedance Option", 
+            interactive=True
+        )
+    
+    return {
+        'group': seedance_parameter,
+        'seedance_option': seedance_option
+    }
+
+
 def create_video_generation_model_parameter(model):
-    if model == "WAN":
-        return create_wan_parameter_group()
-    elif model == API_VIDEO_MODEL.KLING_V2_1:
-        return create_kling_parameter_group()
+    """비디오 생성 모델 파라미터 생성"""
+    with gr.Group(visible=False) as wan_parameter:
+        gr.Markdown("### WAN 모델 파라미터")
+        # WAN 모델용 파라미터 컴포넌트들
+        create_wan_parameter_group()
+
+    with gr.Group(visible=False) as kling_parameter:
+        gr.Markdown("### KLING 모델 파라미터")
+        # KLING 모델용 파라미터 컴포넌트들
+        create_kling_parameter_group()
+
+    with gr.Group(visible=False) as seedance_parameter:
+        gr.Markdown("### Seedance 모델 파라미터")
+        create_seedance_parameter_group()
+    # 두 개의 그룹을 리스트로 반환
+    return [wan_parameter, kling_parameter, seedance_parameter]

@@ -37,9 +37,8 @@ from gradio_command import (
     gradio_start_gunicorn_watchdog,
 )
 
-API_ENVS = {"local", "development", "staging", "product"}
-OP_API_ENVS = {"local", "development", "operation"}
-GRADIO_ENVS = {"local"}
+API_ENVS = {"gradio", "local", "development", "staging", "product"}
+OP_API_ENVS = {"gradio", "local", "development", "operation"}
 
 
 @task(name="api")
@@ -53,7 +52,7 @@ def gemgem_api(c, debug=False, env=""):
     """
 
     try:
-        setup_logging()
+        setup_logging("gemgem-ai.log", "error.log")
         env = env.strip().lower()  # 공백 제거 및 소문자로 변환
         logger = logging.getLogger("app")
 
@@ -178,10 +177,10 @@ def master(c, debug=False, env=""):
         os.environ["ENV"] = env
         load_environment()
 
-        from api.modules_master.consumer.task_queue import master_task_sqs_queue
+        # from api.modules_master.consumer.task_queue import master_task_sqs_queue
 
         # sqs_queue task 반복 처리
-        master_task_sqs_queue()
+        # master_task_sqs_queue()
 
         if debug:
             os.environ["DEBUG"] = "true"
@@ -221,9 +220,9 @@ def gradio(c, debug=False,env=""):
         env = env.strip().lower()  # 공백 제거 및 소문자로 변환
         logger = logging.getLogger("app")
 
-        if env not in GRADIO_ENVS:
+        if env not in API_ENVS:
             logger.error(f"Invalid environment: '{env}'")
-            logger.error(f"Available environments: {', '.join(GRADIO_ENVS)}")
+            logger.error(f"Available environments: {', '.join(API_ENVS)}")
             sys.exit(1)  # 잘못된 환경 값이면 즉시 종료
 
         os.environ["ENV"] = env
