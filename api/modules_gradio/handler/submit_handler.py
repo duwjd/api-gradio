@@ -8,8 +8,6 @@ import logging
 import asyncio
 logger = logging.getLogger("app")
 
-background_task = BackgroundTasks()
-
 def setup_submit_handler(components):
     """분석 요청 제출 버튼 핸들러 설정"""
     
@@ -26,7 +24,7 @@ def setup_submit_handler(components):
             request_body = ReqDoAnalysis(**json_data)
             
             # 분석 서비스 호출
-            result = await AnalysisService.do_analysis(request_body, background_tasks=background_task)
+            result = await AnalysisService.do_analysis(request_body)
             #result = await AnalysisService().do_analysis(request_body, background_task)
             
             # 결과 처리
@@ -67,7 +65,7 @@ def setup_submit_handler(components):
             request_body = ReqDoAnalysis(**json_data)
             
             # 분석 서비스 호출
-            result = await AnalysisService().do_analysis(request_body, background_task)
+            result = await AnalysisService().do_analysis(request_body)
             
             # 결과 처리
             if hasattr(result, 'status'):

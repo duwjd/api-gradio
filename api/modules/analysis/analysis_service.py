@@ -27,18 +27,19 @@ from api.modules.analysis.dao.analysis_sqs_queue_dao import (
     get_analysis_producer_sqs_queue,
 )
 
-from api.modules.analysis.dao.analysis_task_gradio_dao import (
-    get_task_gradio,
-    get_task_gradio_status,
-    init_task_gradio,
+from api.modules.analysis.dao.analysis_task_llm_dao import (
+    get_task_llm,
+    get_task_llm_status,
+    init_task_llm,
     update_task_end_at,
-    update_task_gradio_error,
-    update_task_gradio_init_error,
-    update_task_gradio_progress,
-    update_task_gradio_result,
-    update_task_gradio_status,
-    update_task_gradio_request_body,
-    get_task_gradio_error_message,
+    update_task_llm_error,
+    update_task_llm_init_error,
+    update_task_llm_progress,
+    update_task_llm_result,
+    update_task_llm_status,
+    update_task_llm_request_body,
+    get_task_llm_request_body,
+    get_task_llm_error_message,
 )
 from api.modules.analysis.processor.assist_processor import ai_assist
 from api.modules.analysis.processor_filter import processor_filter
@@ -67,7 +68,7 @@ executor = ThreadPoolExecutor()
 
 class AnalysisService:
     @staticmethod
-    async def do_analysis(req_body: ReqDoAnalysis, background_tasks: BackgroundTasks):
+    async def do_analysis(req_body: ReqDoAnalysis):
         """
         문서 분석 요청을 처리하는 메서드 (비동기 백그라운드 실행)
 
@@ -85,9 +86,9 @@ class AnalysisService:
         """
 
         try:
-            logger.info(f"params: {json.dumps(req_body.dict(), ensure_ascii=False)}")
+            logger.info(f"params: {req_body}")
 
-             # 분석 조회 SQS queue
+            # 분석 조회 SQS queue
             analysis_producer_sqs_queue = await get_analysis_producer_sqs_queue()
 
             # 임시 폴더 생성
@@ -101,7 +102,7 @@ class AnalysisService:
                 is_code = await is_analysis_code(req_body.type, db)
                 if is_code:
                     # task 상태 조회
-                    status = await get_task_gradio_status(req_body, db)
+                    status = await get_task_llm_status(req_body, db)
                     if status == STATUS.PENDING or status == STATUS.PROGRESS:
                         return response_error(
                             ANALYSIS_ERROR.AI_API_ANALYSIS_IS_RUNNING, ResDoAnalysis
@@ -109,14 +110,14 @@ class AnalysisService:
 
                     # 그룹 체크
                     groups = await get_analysis_group(req_body.type, db)
-
-                    # group이 []면 전체 권한
+                    # group이 ["common"]이면 전체 권한
                     if groups != None:
                         if req_body.group not in groups:
-                            raise Exception(ANALYSIS_ERROR.AI_API_GROUP_INVALID)
+                            raise APIException(ANALYSIS_ERROR.AI_API_GROUP_INVALID)
 
-                    # task_gradio 등록
-                    await init_task_gradio(req_body, db)
+                    # task_llm 등록
+                    await init_task_llm(req_body, db)
+
                     # 분석 조회 SQS queue pending 메세지 전송
                     await send_sqs_message(
                         queue_url=analysis_producer_sqs_queue,
@@ -172,11 +173,10 @@ class AnalysisService:
                             )
 
                     # 백그라운드 동기 병렬 실행
-                    back_task = asyncio.create_task(background_task())
-                    background_tasks.add_task(back_task)
+                    asyncio.create_task(background_task())
 
                 else:
-                    raise Exception(ANALYSIS_ERROR.AI_API_ANALYSIS_REQUEST_INVALID)
+                    raise APIException(ANALYSIS_ERROR.AI_API_ANALYSIS_REQUEST_INVALID)
 
             return ResDoAnalysis(
                 status=STATUS.SUCCESS,
@@ -189,6 +189,7 @@ class AnalysisService:
 
             error_enum = ANALYSIS_ERROR.AI_API_ANALYSIS_FAIL
             error_detail = None
+            error_status_code = 500
 
             arg = e.args[0] if e.args else None
 
@@ -203,13 +204,39 @@ class AnalysisService:
             if error_detail == None:
                 error_detail = error_enum.message
 
-            await update_task_gradio_status(req_body, STATUS.FAIL, db)
-            await update_task_gradio_error(req_body, error_code, error_detail, db)
+            error_status_code = error_enum.status_code
+            await update_task_llm_status(req_body, STATUS.FAIL, db)
+            await update_task_llm_error(req_body, error_code, error_detail, db)
 
-            return response_error(error_enum, ResDoAnalysis)
+            response = response_error(
+                error_enum,
+                ResGetAnalysis,
+                await get_task_llm_error_message(
+                    user_id=req_body.userId,
+                    project_id=req_body.projectId,
+                    analysis_code=req_body.type,
+                    db=db,
+                ),
+            )
+
+            # 분석 조회 SQS queue 실패 메세지 전송
+            await send_sqs_message(
+                queue_url=analysis_producer_sqs_queue,
+                message=ResAnalysisSQSConsumer(
+                    httpStatusCode=error_status_code,
+                    userId=req_body.userId,
+                    projectId=req_body.projectId,
+                    type=req_body.type,
+                    status=STATUS.FAIL,
+                    code=error_code,
+                    message=error_detail,
+                ).model_dump_json(exclude_none=True),
+            )
+
+            return response
 
     @staticmethod
-    async def get_analysis(user_id: int, project_id: int, type: str, req_app: Request):
+    async def get_analysis(user_id: int, project_id: int, type: str):
         """
         분석 진행 상태를 조회하는 메서드
 
@@ -235,7 +262,7 @@ class AnalysisService:
                         ResGetAnalysis,
                     )
 
-                task: TaskLLM = await get_task_gradio(user_id, project_id, type, db)
+                task: TaskLLM = await get_task_llm(user_id, project_id, type, db)
                 if task == None:
                     # 분석 요청 하지 않았을 시 예외처리
                     return response_error(
@@ -269,7 +296,7 @@ class AnalysisService:
                     return response_error(
                         error_enum,
                         ResGetAnalysis,
-                        await get_task_gradio_error_message(
+                        await get_task_llm_error_message(
                             user_id=user_id,
                             project_id=project_id,
                             analysis_code=type,
@@ -284,9 +311,6 @@ class AnalysisService:
     async def _run_analysis(
         req_body: ReqDoAnalysis, document_files: list, upload_dir: str, db: Session
     ):
-        
-        logger.info("=== _run_analysis 함수 시작 ===")
-        logger.info(f"req_body.type: {req_body.type}")
         """
         백그라운드에서 AI 분석 실행
 
@@ -302,16 +326,14 @@ class AnalysisService:
             # 분석 조회 SQS queue
             analysis_producer_sqs_queue = await get_analysis_producer_sqs_queue()
 
-            
             # req_body 저장
-            await update_task_gradio_request_body(req_body, db)
+            await update_task_llm_request_body(req_body, db)
             start_time = time.time()
             result: list = []
-            
             # llm 어시스트
             if req_body.type.startswith("AI-ASSIST"):
                 result = await ai_assist(req_body)
-                
+
                 if not result:
                     logger.error(
                         f"userId: {req_body.userId}, projectId: {req_body.projectId}, analysisCode: {req_body.type} 분석 결과 없음"
@@ -320,19 +342,18 @@ class AnalysisService:
 
                 result = json.dumps(result, ensure_ascii=False)
 
-                await update_task_gradio_result(req_body, result, db)
+                await update_task_llm_result(req_body, result, db)
 
                 end_time = time.time()
 
                 # 상태 업데이트 (완료)
-                await update_task_gradio_progress(req_body, 100, db)
-                await update_task_gradio_status(req_body, STATUS.SUCCESS, db)
-                await update_task_gradio_init_error(req_body, db)
+                await update_task_llm_progress(req_body, 100, db)
+                await update_task_llm_status(req_body, STATUS.SUCCESS, db)
+                await update_task_llm_init_error(req_body, db)
                 await update_task_end_at(req_body, round(end_time - start_time, 2), db)
-                
-                
+
                 logger.info(
-                f"userId: {req_body.userId}, projectId: {req_body.projectId}, analysisCode: {req_body.type}, 분석 결과 : {result}, 분석 완료 시간 : {round(end_time - start_time, 2)}초"
+                    f"userId: {req_body.userId}, projectId: {req_body.projectId}, analysisCode: {req_body.type}, 분석 결과 : {result}, 분석 완료 시간 : {round(end_time - start_time, 2)}초"
                 )
             else:
                 # 분석 진행 분기
@@ -342,8 +363,7 @@ class AnalysisService:
                     upload_dir=upload_dir,
                     db=db,
                 )
-                
-                
+
         except Exception as e:
             logger.error(f"분석 중 에러: {e}", exc_info=True)
 
@@ -364,13 +384,15 @@ class AnalysisService:
             if error_detail == None:
                 error_detail = error_enum.message
 
-            await update_task_gradio_status(req_body, STATUS.FAIL, db)
-            await update_task_gradio_error(req_body, error_code, error_detail, db)
+            error_status_code = error_enum.status_code
+
+            await update_task_llm_status(req_body, STATUS.FAIL, db)
+            await update_task_llm_error(req_body, error_code, error_detail, db)
 
             response = response_error(
                 error_enum,
                 ResGetAnalysis,
-                await get_task_gradio_error_message(
+                await get_task_llm_error_message(
                     user_id=req_body.userId,
                     project_id=req_body.projectId,
                     analysis_code=req_body.type,
@@ -416,11 +438,11 @@ class AnalysisService:
         return Response(status_code=201, content=None)
 
     @staticmethod
-    async def get_model_sqs_queue_count(model: str):
+    async def get_model_sqs_queue_count(sqs_queue: str):
         """
         SQS큐 메세지 개수 가져오기
         """
-        queue_url = await get_sqs_queue_url(model + ".fifo")
+        queue_url = await get_sqs_queue_url(sqs_queue)
         get_sqs_queue_count = await get_sqs_message_count(queue_url)
 
         return get_sqs_queue_count

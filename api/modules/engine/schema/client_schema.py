@@ -123,6 +123,8 @@ class ModelInputSchema(BaseConfigModel):
     seed: int = Field(default=0, ge=0, le=2**32 - 1, alias="seed")
     shift: int = Field(default=8.0, ge=1.0, le=10.0, alias="shift")  # not used
     total_second_length: int = Field(default=5, ge=1, le=10, alias="totalSecondLength")
+    lora_name: Optional[str] = Field(default="kijai_comfy_v1", alias="loraName")
+    filter_name: Optional[str] = Field(default="empty", alias="filterName")
     # Configuration that allows PIL image object
     model_config = ConfigDict(
         extra="forbid",  # 모든 모델에서 추가 필드 금지

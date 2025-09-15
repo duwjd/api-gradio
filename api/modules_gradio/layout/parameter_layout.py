@@ -9,8 +9,9 @@ from config.const import (
 from api.modules_gradio.ui_updates import toggle_prompt_input, toggle_prompt_input_kling
 from config.const import API_VIDEO_MODEL
 from config.const import MODEL
+from config.const import FILTER_OPTIONS
 
-def create_wan_parameter_group():
+def     create_wan_parameter_group():
     """WAN 모델 파라미터 그룹 생성"""
     wan_parameter = gr.Group(elem_id="wan_parameter", visible=True)
     
@@ -68,6 +69,11 @@ def create_wan_parameter_group():
                 interactive=True
             )
         with gr.Row():
+            filter_selection = gr.Radio(
+                choices = FILTER_OPTIONS,
+                label="Filter 선택",
+                interactive=True
+            )
             num_inference_steps = gr.Slider(
                 minimum=SLIDER_CONFIGS["num_inference_steps"]["min"], 
                 maximum=SLIDER_CONFIGS["num_inference_steps"]["max"], 
@@ -76,6 +82,8 @@ def create_wan_parameter_group():
                 label="Num Inference Steps",
                 interactive=True
             )
+            
+        with gr.Row():
             guidance_scale = gr.Slider(
                     minimum=SLIDER_CONFIGS["guidance_scale"]["min"], 
                     maximum=SLIDER_CONFIGS["guidance_scale"]["max"], 
@@ -84,8 +92,6 @@ def create_wan_parameter_group():
                     label="Guidance Scale",
                     interactive=True
             )   
-        with gr.Row():
-            
             shift = gr.Slider(
                 minimum=SLIDER_CONFIGS["shift"]["min"], 
                 maximum=SLIDER_CONFIGS["shift"]["max"], 
@@ -94,6 +100,7 @@ def create_wan_parameter_group():
                 label="Shift",
                 interactive=True
             )           
+        with gr.Row():
             seed = gr.Number(
                 label="Seed",
                 value=WAN_DEFAULT_VALUES["seed"],
@@ -115,6 +122,7 @@ def create_wan_parameter_group():
         'frames_per_second': frames_per_second,
         'total_second_length': total_second_length,
         'lora_selection': lora_selection,
+        'filter_selection' : filter_selection,
         'negative_prompt': negative_prompt,
         'num_inference_steps': num_inference_steps,
         'guidance_scale': guidance_scale,

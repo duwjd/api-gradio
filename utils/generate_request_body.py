@@ -6,7 +6,7 @@ import uuid
 import os
 import tempfile
 from utils.s3_util import upload_file
-from config.const import MAX_IMAGES
+from config.const import MODEL
 import logging
 
 logger = logging.getLogger("app")
@@ -15,6 +15,22 @@ def generate_json_i2v(components):
     """Image2Video용 JSON 생성"""
     logger.info(components)
     try:
+        # 모델 매핑 딕셔너리 생성
+        MODEL_MAPPING = {model.name: model.value for model in MODEL}
+        
+        # 모델 정보 추출
+        model_selection = components.get('model_selection', 'WAN2_2')
+        model_info = MODEL_MAPPING.get(model_selection, ("ENGINE", "WAN", "2.1", ""))
+        
+        video_type = model_info[0]  # "ENGINE" 또는 "API"
+        model_name = model_info[1]  # "WAN", "KLING", "SEEDANCE"
+        version = model_info[2]     # "2.1", "2.2", "1.0"
+        edition = model_info[3]     # "", "LITE", "PRO"
+        
+        # 알 수 없는 모델 선택시 로그 출력
+        if model_selection not in MODEL_MAPPING:
+            logger.warning(f"Unknown model_selection: {model_selection}, using default values")
+        
         # 파일 uuid 생성
         file_id = str(uuid.uuid4())
         
@@ -31,6 +47,7 @@ def generate_json_i2v(components):
         
         # 비디오 파라미터 추출
         video_params = components.get('video_parameter', {})
+        logger.info(f"Video Parameters: {video_params}")
         
         # 모델별 옵션 구성
         model_option = {
@@ -44,7 +61,8 @@ def generate_json_i2v(components):
             "guidance_scale": video_params.get('guidance_scale'),
             "shift": video_params.get('shift'),
             "seed": video_params.get('seed'),
-            "filter" : video_params.get('filter')
+            "filterName": video_params.get('filter_selection'),
+            "loraName": video_params.get('lora_selection')
         }
         
         # aspect_ratio 계산 (resolution에서 추출)
@@ -62,16 +80,13 @@ def generate_json_i2v(components):
         # 기본 src URL 설정 (이미지가 있으면 실제 URL, 없으면 기본값)
         src_url = document_s3_urls[0] if document_s3_urls else f"s3://ai-10k1m/public/local/gradio/1/1/document/{file_id}_01.jpg"
         
-        #
-        video_type = "ENGINE" if components.get('model_selection', 'WAN2.2').startswith('WAN') else "WAN"
-        
         option = {
             "src": src_url,
-            "video_type": video_type,
             "model": {
-                "name": components.get('model_selection', 'WAN2.2'),
-                "type" : video_type,
-                "version" : "2.1" if components.get('model_selection', 'WAN2.2').startswith('WAN') else "2.2",
+                "name": model_name,
+                "type": video_type,
+                "version": version,
+                "edition": edition,
                 "option": model_option
             }
         }
@@ -95,7 +110,7 @@ def generate_json_i2v(components):
         logger.error(f"generate_json_i2v 오류: {e}")
         # 에러 발생 시 기본 구조 반환
         error_json = {
-            "에러가 발생했습니다." : {e}
+            "에러가 발생했습니다.": str(e)
         }
         return json.dumps(error_json, indent=2, ensure_ascii=False)
 
@@ -131,16 +146,7 @@ def generate_json_i2i(components):
     except Exception as e:
         logger.error(f"generate_json_i2i 오류: {e}")
         error_json = {
-            "userId": 1,
-            "projectId": 1,
-            "documentS3": [],
-            "analysisS3": "s3://gemgem-private-10k1m/private/development/1/1/analysis/",
-            "analysisHttps": "https://cdn.gemgem.video/private/development/1/1/analysis/",
-            "group": "10k1m.com",
-            "type": components.get('analysis_code', 'AI-GRADIO-I2I-000001'),
-            "option": [],
-            "prompt": [],
-            "error": str(e)
+            "에러가 발생했습니다." : {e}
         }
         return json.dumps(error_json, indent=2, ensure_ascii=False)
 

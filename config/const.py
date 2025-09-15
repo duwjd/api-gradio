@@ -250,9 +250,16 @@ FPS_OPTIONS = [16, 24, 30]
 
 # LoRA 선택 옵션들
 LORA_OPTIONS = [
-    "None", 
-    "Wan21_CausVid_14B_T2V_lora_rank32.safetensors", 
-    "Wan21_CausVid_14B_T2V_lora_rank32_v2.safetensors"
+    "empty", 
+    "kijai_comfy_v1", 
+    "kijai_comfy_v2"
+]
+
+#Filter 선택 옵션들
+FILTER_OPTIONS = [
+    "empty",
+    "cakeify",
+    "squish"
 ]
 
 # 이미지 선택 옵션들
@@ -262,7 +269,7 @@ IMAGE_CHOICE_OPTIONS = ["image", "prompt"]
 WAN_DEFAULT_VALUES = {
     "resolution": "480*720",
     "fps": 24,
-    "total_second_length": 2,
+    "total_second_length": 5,
     "negative_prompt": "",
     "lora_selection" : "",
     "num_inference_steps": 20,
@@ -278,6 +285,7 @@ SLIDER_CONFIGS = {
     "guidance_scale": {"min": 1.0, "max": 20.0, "step": 0.1},
     "shift": {"min": 1.0, "max": 10.0, "step": 0.1}
 }
+
 
 # 앱 설명 마크다운
 APP_DESCRIPTION = """

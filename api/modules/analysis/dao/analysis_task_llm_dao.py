@@ -6,12 +6,16 @@ from sqlalchemy import select, update
 from sqlalchemy.future import select
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.modules.analysis.dao.analysis_dao import get_analysis_type
 from api.modules.analysis.schema.analysis_schema import ReqDoAnalysis, TaskLLMSchema
 from config.const import STATUS
 from database.mariadb.models.resource_llm_model import ResourceLLM
 from database.mariadb.models.task_llm_model import TaskLLM
+from api.modules_master.consumer.schema.consumer_analysis_schema import (
+    ReqConsumerAnalysis,
+)
 
 logger = logging.getLogger("app")
 
@@ -142,6 +146,35 @@ async def get_task_llm_status(req_body: ReqDoAnalysis, db: Session):
 
     if task:
         return TaskLLMSchema.model_validate(task).status
+    return None
+
+async def get_task_llm_request_body(req_body: ReqConsumerAnalysis, db: AsyncSession):
+    """
+    task_gradio documentS3 조회
+
+    Args:
+        req_body (ReqConsumerAnalysis): req_body
+        db (Session): DB Session
+
+    Returns:
+        documentS3 (list): input url 주소 리스트
+    """
+    user_id = req_body.userId
+    project_id = req_body.projectId
+    analysis_code = req_body.analysisCode
+
+    task = select(TaskLLM.request_body).where(
+        TaskLLM.user_id == user_id,
+        TaskLLM.project_id == project_id,
+        TaskLLM.analysis_code == analysis_code,
+    )
+
+    result = await db.execute(task)
+    request_body = result.scalars().first()
+
+    if request_body:
+        data = json.loads(request_body)
+        return ReqDoAnalysis(**data)
     return None
 
 
@@ -425,6 +458,36 @@ async def update_empty_tag_llm(req_body: ReqDoAnalysis, empty_tag: str, db: Sess
 
     if result.rowcount == 0:
         raise Exception("user_id, project_id task_llm row가 없습니다")
+    
+
+async def update_task_llm_request_body(req_body: ReqDoAnalysis, db: Session):
+    """
+    task_gradio request_body 저장
+
+    Args:
+        req_body (ReqDoAnalysis): req_body
+        request_body (str): request_body
+        db (Session): DB Session
+    """
+    user_id = req_body.userId
+    project_id = req_body.projectId
+    analysis_code = req_body.type
+
+    task = (
+        update(TaskLLM)
+        .where(
+            TaskLLM.user_id == user_id,
+            TaskLLM.project_id == project_id,
+            TaskLLM.analysis_code == analysis_code,
+        )
+        .values(request_body=req_body.model_dump_json())
+    )
+
+    result = await db.execute(task)
+    await db.commit()
+
+    if result.rowcount == 0:
+        raise Exception("user_id, project_id task_gradio row가 없습니다")
 
 
 async def update_task_llm_process(req_body: ReqDoAnalysis, process: str, db: Session):
